@@ -55,7 +55,8 @@ this_targ = 'm33'
 
 
 # all_configs = ['C+D', 'A+B+C+D', 'B+C+D', 'A+B+C']
-all_configs = ['C+D'] #, 'B+C+D']
+# all_configs = ['C+D'] #, 'B+C+D']
+all_configs = ['D']
 
 this_uvh.set_targets(only=[this_targ])
 this_uvh.set_interf_configs(only=all_configs)
