@@ -22,7 +22,7 @@ cd $HOME/scratch/LGLBS/line_imaging/
 # Ensure no time overlap in job start times
 python -c "import time, random; time.sleep(random.randint(10, 300))"
 
-set casa_script = $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_imaging
+set casa_script = $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_imaging.py
 
 setenv OMP_NUM_THREADS $NSLOTS
 
