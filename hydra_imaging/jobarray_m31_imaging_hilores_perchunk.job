@@ -6,9 +6,14 @@
 #$ -N m31_hilores
 #$ -t 1-7
 #$ -pe mthread 4
-#$ -l mres=32G,h_data=8G,h_vmem=8G,himem
+#$ -l mres=80G,h_data=20G,h_vmem=20G,himem
 
 # 170 channels. 25 channels per chunk = 7 chunks
+#  D config: 25 GB memory needed
+##$ -l mres=32G,h_data=8G,h_vmem=8G,himem
+
+#  C+D config: 75 GB memory needed
+##$ -l mres=80G,h_data=20G,h_vmem=20G,himem
 
 echo + `date` $JOB_NAME started on $HOSTNAME in $QUEUE with jobID=$JOB_ID and taskID=$SGE_TASK_ID
 echo NSLOTS=$NSLOTS
@@ -26,8 +31,8 @@ set casa_script = $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_imaging.py
 
 setenv OMP_NUM_THREADS $NSLOTS
 
-# $CASA/casa --nogui --log2term -c $casa_script "m31" "hilores" "C+D" 25 ${SGE_TASK_ID}
-$CASA/casa --nogui --log2term -c $casa_script "m31" "hilores" "D" 25 ${SGE_TASK_ID}
+$CASA/casa --nogui --log2term -c $casa_script "m31" "hilores" "C+D" 25 ${SGE_TASK_ID}
+# $CASA/casa --nogui --log2term -c $casa_script "m31" "hilores" "D" 25 ${SGE_TASK_ID}
 
 echo $JOB_NAME $SGE_TASK_ID done `date`
 
