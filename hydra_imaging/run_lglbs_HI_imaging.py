@@ -30,7 +30,9 @@ import numpy as np
 
 this_idx = int(sys.argv[-1])
 this_chunksize = int(sys.argv[-2])
-this_line_product = sys.argv[-3]
+this_config = sys.argv[-3]
+this_line_product = sys.argv[-4]
+this_galaxy = sys.argv[-5]
 
 # -1 offset from job array index
 this_chunk_num = this_idx-1
@@ -59,9 +61,12 @@ this_kh.make_missing_directories(imaging=True, derived=True, postprocess=True, r
 # Set up what we do this run
 ##############################################################################
 
-this_imh = ImagingChunkedHandler('m33', 'C+D', this_line_product, this_kh,
+this_imh = ImagingChunkedHandler(this_galaxy,
+                                 this_config,
+                                 this_line_product,
+                                 this_kh,
                                  chunksize=this_chunksize,
-                                 make_temp_dir=False)
+                                 make_temp_dir=True)
 
 
 print(f"Chunk {this_chunk_num} of {this_imh.nchunks}")

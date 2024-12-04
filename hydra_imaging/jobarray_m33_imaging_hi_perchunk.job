@@ -1,17 +1,14 @@
 # /bin/csh
 #
 #$ -cwd -j y
-#$ -o m33_cd_hilores.phangspipeline.$JOB_ID.$TASK_ID.log
+#$ -o m33_hi.phangspipeline.$JOB_ID.$TASK_ID.log
 #$ -q lThM.q
-#$ -N m33_cd_hilores
-#$ -t 1-5
-#$ -m e
-#$ -M eric.koch@cfa.harvard.edu
+#$ -N m33_hi
+#$ -t 1-50
 #$ -pe mthread 4
 #$ -l mres=32G,h_data=8G,h_vmem=8G,himem
 
-# 121 channels. 25 channels per chunk = 5 chunks
-
+# 1213 channels. 25 channels per chunk = 50 chunks
 echo + `date` $JOB_NAME started on $HOSTNAME in $QUEUE with jobID=$JOB_ID and taskID=$SGE_TASK_ID
 echo NSLOTS=$NSLOTS
 #
@@ -24,11 +21,12 @@ cd $HOME/scratch/LGLBS/line_imaging/
 # Ensure no time overlap in job start times
 python -c "import time, random; time.sleep(random.randint(10, 300))"
 
-set casa_script = $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_imaging_m33.py
+set casa_script = $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_imaging.py
 
 setenv OMP_NUM_THREADS $NSLOTS
 
-$CASA/casa --nogui --log2term -c $casa_script "hilores" 25 ${SGE_TASK_ID}
+# $CASA/casa --nogui --log2term -c $casa_script "m33" "hi21cm" "C+D" 25 ${SGE_TASK_ID}
+$CASA/casa --nogui --log2term -c $casa_script "m33" "hi21cm" "D" 25 ${SGE_TASK_ID}
 
 echo $JOB_NAME $SGE_TASK_ID done `date`
 

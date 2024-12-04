@@ -27,7 +27,7 @@ from importlib import reload
 #key_file = '/data/tycho/0/leroy.42/reduction/vla/lglbs_pipeline_configs/lglbs_keys/master_key.txt'
 key_file = "/home/erickoch/lglbs_hi_scripts/lglbs_keys/master_key.txt"
 
-data_path = "/reduction10/erickoch/LGLBS/line_imaging/"
+data_path = "/reduction/erickoch/LGLBS/line_imaging/"
 export_path = f"{data_path}/staged_measurement_sets/"
 
 # Set the logging

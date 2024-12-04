@@ -23,10 +23,15 @@ set casa_script = $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_gather.py
 
 setenv OMP_NUM_THREADS $NSLOTS
 
-$CASA/casa --nogui --log2term -c $casa_script m33 C+D hilores 25
+# $CASA/casa --nogui --log2term -c $casa_script m33 C+D hilores 25
 # $CASA/casa --nogui --log2term -c $casa_script m33 C+D himidres 25
 # $CASA/casa --nogui --log2term -c $casa_script m33 C+D hi_0p8kms 25
 # $CASA/casa --nogui --log2term -c $casa_script m33 C+D hi 25
+
+$CASA/casa --nogui --log2term -c $casa_script m33 D hilores 25
+$CASA/casa --nogui --log2term -c $casa_script m33 D himidres 25
+$CASA/casa --nogui --log2term -c $casa_script m33 D hi_0p8kms 25
+# $CASA/casa --nogui --log2term -c $casa_script m33 D hi 25
 
 echo $JOB_NAME $SGE_TASK_ID done `date`
 
