@@ -27,8 +27,7 @@ this_der = der.DerivedHandler(key_handler=this_kh)
 
 
 this_der.set_targets(only=[this_target])
-# this_der.set_interf_configs(only=['C','C+D'])
-this_der.set_interf_configs()
+this_der.set_interf_configs(only=[this_config])
 this_der.set_line_products(only=[this_line_product])
 # this_der.set_line_products(only=['hilores'])
 # this_der.set_feather_configs(only=[f"{this_config}+tp"])
