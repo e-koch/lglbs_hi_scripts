@@ -20,30 +20,31 @@ time \
 cd $HOME/scratch/LGLBS/line_imaging/
 
 set casa_script = $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_gather.py
+set python_script = $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_products.py
 
 setenv OMP_NUM_THREADS $NSLOTS
 
 # $CASA/casa --nogui --log2term -c $casa_script m33 C+D hilores 25
-# ~/miniconda3/bin/python $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_products.py m33 C+D hilores
+# $HOME/miniconda3/bin/python $python_script m33 C+D hilores
 
 # $CASA/casa --nogui --log2term -c $casa_script m33 C+D himidres 25
-# ~/miniconda3/bin/python $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_products.py m33 C+D himidres
+# $HOME/miniconda3/bin/python $python_script m33 C+D himidres
 
 # $CASA/casa --nogui --log2term -c $casa_script m33 C+D hi_0p8kms 25
-# ~/miniconda3/bin/python $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_products.py m33 C+D hi_0p8kms
+# $HOME/miniconda3/bin/python $python_script m33 C+D hi_0p8kms
 
 # $CASA/casa --nogui --log2term -c $casa_script m33 C+D hi 25
-# ~/miniconda3/bin/python $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_products.py m33 C+D hi
+# $HOME/miniconda3/bin/python $python_script m33 C+D hi
 
 
-$CASA/casa --nogui --log2term -c $casa_script m33 D hilores 25
-~/miniconda3/bin/python $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_products.py m33 D hilores
+# $CASA/casa --nogui --log2term -c $casa_script m33 D hilores 25
+$HOME/miniconda3/bin/python $python_script m33 D hilores
 # $CASA/casa --nogui --log2term -c $casa_script m33 D himidres 25
-# ~/miniconda3/bin/python $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_products.py m33 D himidres
+# $HOME/miniconda3/bin/python $python_script m33 D himidres
 # $CASA/casa --nogui --log2term -c $casa_script m33 D hi_0p8kms 25
-# ~/miniconda3/bin/python $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_products.py m33 D hi_0p8kms
+# $HOME/miniconda3/bin/python $python_script m33 D hi_0p8kms
 # $CASA/casa --nogui --log2term -c $casa_script m33 D hi 25
-# ~/miniconda3/bin/python $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_products.py m33 D hi
+# $HOME/miniconda3/bin/python $python_script m33 D hi
 
 
 
