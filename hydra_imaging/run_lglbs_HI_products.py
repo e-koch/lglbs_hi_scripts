@@ -8,6 +8,9 @@ this_target = sys.argv[-3]
 this_config = sys.argv[-2]
 this_line_product = sys.argv[-1]
 
+# Append to path
+sys.path.append(os.path.expanduser("~/phangs_imaging_scripts"))
+
 from phangsPipeline import phangsLogger as pl
 pl.setup_logger(level='DEBUG', logfile=None)
 
