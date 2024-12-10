@@ -30,21 +30,21 @@ setenv OMP_NUM_THREADS $NSLOTS
 # $CASA/casa --nogui --log2term -c $casa_script m33 C+D himidres 25
 # $HOME/miniconda3/bin/python $python_script m33 C+D himidres
 
-$CASA/casa --nogui --log2term -c $casa_script m33 C+D hi21cm_0p8kms 25
-$HOME/miniconda3/bin/python $python_script m33 C+D hi21cm_0p8kms
+# $CASA/casa --nogui --log2term -c $casa_script m33 C+D hi21cm_0p8kms 25
+# $HOME/miniconda3/bin/python $python_script m33 C+D hi21cm_0p8kms
 
-# $CASA/casa --nogui --log2term -c $casa_script m33 C+D hi 25
-# $HOME/miniconda3/bin/python $python_script m33 C+D hi
+$CASA/casa --nogui --log2term -c $casa_script m33 C+D hi21cm 25
+$HOME/miniconda3/bin/python $python_script m33 C+D hi21cm
 
 
 # $CASA/casa --nogui --log2term -c $casa_script m33 D hilores 25
 # $HOME/miniconda3/bin/python $python_script m33 D hilores
 # $CASA/casa --nogui --log2term -c $casa_script m33 D himidres 25
 # $HOME/miniconda3/bin/python $python_script m33 D himidres
-$CASA/casa --nogui --log2term -c $casa_script m33 D hi21cm_0p8kms 25
-$HOME/miniconda3/bin/python $python_script m33 D hi21cm_0p8kms
-# $CASA/casa --nogui --log2term -c $casa_script m33 D hi 25
-# $HOME/miniconda3/bin/python $python_script m33 D hi
+# $CASA/casa --nogui --log2term -c $casa_script m33 D hi21cm_0p8kms 25
+# $HOME/miniconda3/bin/python $python_script m33 D hi21cm_0p8kms
+$CASA/casa --nogui --log2term -c $casa_script m33 D hi21cm 25
+$HOME/miniconda3/bin/python $python_script m33 D hi21cm
 
 # $CASA/casa --nogui --log2term -c $casa_script m31 D hilores 25
 # $HOME/miniconda3/bin/python $python_script m31 D hilores
