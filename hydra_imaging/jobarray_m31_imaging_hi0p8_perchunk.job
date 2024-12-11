@@ -31,8 +31,8 @@ set casa_script = $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_imaging.py
 
 setenv OMP_NUM_THREADS $NSLOTS
 
-$CASA/casa --nogui --log2term -c $casa_script "m31" "himidres" "C+D" 10 ${SGE_TASK_ID}
-# $CASA/casa --nogui --log2term -c $casa_script "m31" "himidres" "D" 10 ${SGE_TASK_ID}
+$CASA/casa --nogui --log2term -c $casa_script "m31" "hi21cm_0p8kms" "C+D" 10 ${SGE_TASK_ID}
+# $CASA/casa --nogui --log2term -c $casa_script "m31" "hi21cm_0p8kms" "D" 10 ${SGE_TASK_ID}
 
 echo $JOB_NAME $SGE_TASK_ID done `date`
 
