@@ -4,16 +4,16 @@
 #$ -o m31_himidres.phangspipeline.$JOB_ID.$TASK_ID.log
 #$ -q lThM.q
 #$ -N m31_himidres
-#$ -t 1-14
+#$ -t 1-34
 #$ -pe mthread 4
-#$ -l mres=32G,h_data=8G,h_vmem=8G,himem
+#$ -l mres=16G,h_data=4G,h_vmem=4G,himem
 
-# 340 channels. 25 channels per chunk = 14 chunks
-#  D config: 25 GB memory needed
+# 340 channels. 10 channels per chunk = 34 chunks
+#  D config: 12 GB memory needed
+##$ -l mres=16G,h_data=4G,h_vmem=4G,himem
+
+#  C+D config: 25 GB memory needed
 ##$ -l mres=32G,h_data=8G,h_vmem=8G,himem
-
-#  C+D config: 75 GB memory needed
-##$ -l mres=80G,h_data=20G,h_vmem=20G,himem
 
 echo + `date` $JOB_NAME started on $HOSTNAME in $QUEUE with jobID=$JOB_ID and taskID=$SGE_TASK_ID
 echo NSLOTS=$NSLOTS
@@ -31,8 +31,8 @@ set casa_script = $HOME/lglbs_hi_scripts/hydra_imaging/run_lglbs_HI_imaging.py
 
 setenv OMP_NUM_THREADS $NSLOTS
 
-# $CASA/casa --nogui --log2term -c $casa_script "m31" "himidres" "C+D" 25 ${SGE_TASK_ID}
-$CASA/casa --nogui --log2term -c $casa_script "m31" "himidres" "D" 25 ${SGE_TASK_ID}
+# $CASA/casa --nogui --log2term -c $casa_script "m31" "himidres" "C+D" 10 ${SGE_TASK_ID}
+$CASA/casa --nogui --log2term -c $casa_script "m31" "himidres" "D" 10 ${SGE_TASK_ID}
 
 echo $JOB_NAME $SGE_TASK_ID done `date`
 
