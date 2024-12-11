@@ -6,7 +6,7 @@
 #$ -N m31_hi0p8
 #$ -t 1-85
 #$ -pe mthread 4
-#$ -l mres=16G,h_data=4G,h_vmem=4G,himem
+#$ -l mres=32G,h_data=8G,h_vmem=8G,himem
 
 # 849 channels. 10 channels per chunk = 85 chunks
 #  D config: 12 GB memory needed
