@@ -199,7 +199,7 @@
 
 # Locations
 
-key_dir        	     	/home/erickoch/lglbs_hi_scripts/lglbs_keys/
+key_dir        	     	/home/ekoch/lglbs_hi_scripts/lglbs_keys/
 cleanmask_root	/home/ekoch/scratch/VLAXL_imaging/cleanmasks/
 imaging_root 	/home/ekoch/scratch/VLAXL_imaging/imaging/
 postprocess_root /home/ekoch/scratch/VLAXL_imaging/postprocess/
