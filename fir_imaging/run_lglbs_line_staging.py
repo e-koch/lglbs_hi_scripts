@@ -50,6 +50,12 @@ this_kh.make_missing_directories(imaging=True,
 # this_targ = 'm31'
 this_targ = sys.argv[-1].lower()
 
+# Varying spatial coverage in A, B vs C, D. Specify central pointing only for these
+dwarfs_targs = ['wlm', 'ic1613', 'ic10']
+
+if this_targ in dwarfs_targs:
+    # Grab only the central pointing for the dwarfs
+    this_targ += 'ctr'
 
 # all_configs = ['C+D', 'A+B+C+D', 'B+C+D', 'A+B+C']
 # all_configs = ['C+D', 'D'] #, 'B+C+D']
