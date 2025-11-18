@@ -19,7 +19,7 @@ import os
 import sys
 
 # Locate the master key
-key_file = "/home/ekoch/lglbs_hi_scripts/lglbs_keys/master_key.txt"
+key_file = "/home/ekoch/lglbs_hi_scripts/lglbs_keys/master_key_fir.txt"
 
 data_path = "/home/ekoch/scratch/VLAXL_imaging/"
 export_path = "/home/ekoch/projects/rrg-eros-ab/ekoch/VLAXL/staged_measurement_sets/"
