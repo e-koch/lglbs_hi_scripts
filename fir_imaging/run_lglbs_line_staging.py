@@ -38,7 +38,10 @@ this_kh = kh.KeyHandler(master_key = key_file)
 this_uvh = uvh.VisHandler(key_handler = this_kh)
 
 # Make missing directories
-this_kh.make_missing_directories(imaging=True,derived=True,postprocess=True,release=True)
+this_kh.make_missing_directories(imaging=True,
+                                 derived=True,
+                                 postprocess=True,
+                                 release=True)
 
 ##############################################################################
 # Set up what we do this run
@@ -60,8 +63,9 @@ this_uvh.set_interf_configs(only=all_configs)
 #                      'oh1612', 'oh1720', 'oh1665', 'oh1667']
 
 # all_line_products = ['oh1612', 'oh1720', 'oh1665', 'oh1667']
-all_line_products = ['himidres', 'hi21cm_0p8kms', 'hi']
-# all_line_products = ['hilores']
+# all_line_products = ['himidres', 'hi21cm_0p8kms', 'hi']
+
+all_line_products = ['hilores']
 
 # this_uvh.set_line_products(only=all_line_products)
 
