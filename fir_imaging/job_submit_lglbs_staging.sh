@@ -52,7 +52,7 @@ cd $target_name
 
 for filename in *.tar; do
     echo "Untarring $filename"
-    tar -xvf $filename
+    tar -xf $filename
     rm $filename
 done
 
