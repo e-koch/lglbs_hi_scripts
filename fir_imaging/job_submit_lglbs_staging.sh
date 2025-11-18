@@ -33,7 +33,7 @@ python3 -c "import time, random; time.sleep(random.randint(2, 120))"
 export data_path="/home/ekoch/scratch/VLAXL_imaging/MeasurementSets/"
 
 export casa_executable="/home/ekoch/casa-6.6.1-17-pipeline-2024.1.0.8/bin/casa"
-export casa_script="/home/ekoch/lglbs_hi_scripts/fir_imaging/run_lglbs_HI_staging.py"
+export casa_script="/home/ekoch/lglbs_hi_scripts/fir_imaging/run_lglbs_line_staging.py"
 # export casa_job_config_file=/home/ekoch/lglbs_hi_scripts/fir_imaging/line_staging_imaging.${SLURM_ARRAY_TASK_ID}.jobconfig.txt
 
 
