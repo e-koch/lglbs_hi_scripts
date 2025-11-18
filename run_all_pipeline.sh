@@ -11,9 +11,6 @@ git switch -c uvcontsub_exclude_freqrange
 # ngc6822 has no centre only pointing
 
 
-<<<<<<< HEAD
-=======
-
 # Derived products for feathered C+D full dwarf mosaics
 conda activate pyuvdata_ewk
 python ~/lglbs_hi_scripts/run_lglbs_derived.py ic10 &
@@ -41,4 +38,3 @@ tar -cf wlm_c+d+tp_hi.tar wlm
 ~/rclone-v1.65.2-linux-amd64/rclone copy ic1613 lglbs-gdrive:"LineImaging/HI_C+D_feathered/ic1613/" --progress
 ~/rclone-v1.65.2-linux-amd64/rclone copy ngc6822 lglbs-gdrive:"LineImaging/HI_C+D_feathered/ngc6822/" --progress
 ~/rclone-v1.65.2-linux-amd64/rclone copy wlm lglbs-gdrive:"LineImaging/HI_C+D_feathered/wlm/" --progress
->>>>>>> 24ab4b9 (Long overdue update, including foreground separation, feathering scripts, rms estimation, and cluster imaging)

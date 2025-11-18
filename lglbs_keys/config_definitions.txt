@@ -165,19 +165,19 @@
 # exclude_freqrange flags out -80 to 80 km/s in HI
 
 line_product    hi21cm    {'line_tag':'hi21cm','channel_kms':0.42,'statwt_edge_kms':50.0}
-line_product    hi21cm    {'fitorder':1,'combinespw':False,'lines_to_flag':['hi21cm'],'exclude_freq_ranges_ghz':[[1.42002671,1.42078479]]}
+line_product    hi21cm    {'fitorder':1,'combinespw':False,'lines_to_flag':['hi21cm'],'exclude_freq_ranges_ghz':[[1.42002671,1.42078479]],'flag_edge_fraction':0.1}
 
 # Ends up being ~0.84 km/s
 line_product    hi21cm_0p8kms    {'line_tag':'hi21cm','channel_kms':0.9,'statwt_edge_kms':50.0}
-line_product    hi21cm_0p8kms    {'fitorder':1,'combinespw':False,'lines_to_flag':['hi21cm'],'exclude_freq_ranges_ghz':[[1.42002671,1.42078479]]}
+line_product    hi21cm_0p8kms    {'fitorder':1,'combinespw':False,'lines_to_flag':['hi21cm'],'exclude_freq_ranges_ghz':[[1.42002671,1.42078479]],'flag_edge_fraction':0.1}
 
 # Ends up near 4.1 km/s
 line_product    hilores    {'line_tag':'hi21cm','channel_kms':4.2,'statwt_edge_kms':50.0}
-line_product    hilores    {'fitorder':0,'combinespw':False,'lines_to_flag':['hi21cm'],'exclude_freq_ranges_ghz':[[1.42002671,1.42078479]]}
+line_product    hilores    {'fitorder':1,'combinespw':False,'lines_to_flag':['hi21cm'],'exclude_freq_ranges_ghz':[[1.42002671,1.42078479]],'flag_edge_fraction':0.1}
 
 # Ends up near 2.1 km/s
 line_product    himidres    {'line_tag':'hi21cm','channel_kms':2.1,'statwt_edge_kms':50.0}
-line_product    himidres    {'fitorder':1,'combinespw':False,'lines_to_flag':['hi21cm'],'exclude_freq_ranges_ghz':[[1.42002671,1.42078479]]}
+line_product    himidres    {'fitorder':1,'combinespw':False,'lines_to_flag':['hi21cm'],'exclude_freq_ranges_ghz':[[1.42002671,1.42078479]],'flag_edge_fraction':0.1}
 
 line_product    oh1665    {'line_tag':'oh1665','channel_kms':1.5,'statwt_edge_kms':50.0}
 line_product	oh1665	  {'fitorder':0,'combinespw':False,'lines_to_flag':['oh1665','oh1667']}

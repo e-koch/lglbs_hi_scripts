@@ -21,13 +21,13 @@ Command line argument is the galaxy name.
 
 import os
 import sys
-from importlib import reload
 
 # Locate the master key
 #key_file = '/data/tycho/0/leroy.42/reduction/vla/lglbs_pipeline_configs/lglbs_keys/master_key.txt'
 key_file = "/home/erickoch/lglbs_hi_scripts/lglbs_keys/master_key.txt"
 
-data_path = "/reduction10/erickoch/LGLBS/line_imaging/"
+# data_path = "/reduction10/erickoch/LGLBS/line_imaging/"
+data_path = "/reduction/erickoch/LGLBS/line_imaging/"
 export_path = f"{data_path}/staged_measurement_sets/"
 
 # Set directory for the pipeline and change to this directory
@@ -75,14 +75,21 @@ this_targ = sys.argv[-1]
 
 all_targs = ['ic10', 'ic1613', 'ngc6822', 'wlm']
 
-if not this_targ in all_targs:
-    raise ValueError(f"Cannot find target {this_targ} in list of target names: {all_targs}")
+if this_targ == 'all':
+    this_targ = all_targs
 
-all_configs = ['C+D', 'C', 'D']
+    this_uvh.set_targets(only=all_targs)
+
+else:
+    if not this_targ in all_targs:
+        raise ValueError(f"Cannot find target {this_targ} in list of target names: {all_targs}")
+
+    this_uvh.set_targets(only=[this_targ])
+
+all_configs = ['C+D', 'D']
 # all_configs = ['D']
 
 #this_uvh.set_targets(only=['ic10ctr','ic1613ctr','ngc6822','wlmctr'])
-this_uvh.set_targets(only=[this_targ])
 this_uvh.set_interf_configs(only=all_configs)
 
 all_line_products = ['oh1612', 'oh1665', 'oh1667', 'oh1720',
@@ -118,24 +125,24 @@ this_uvh.loop_stage_uvdata(do_copy=False, do_contsub=False,
 
 # Now we'll tar up the MS files
 
-import tarfile
+# import tarfile
 
-for this_config in all_configs:
-    for this_line in all_line_products:
+# for this_config in all_configs:
+#     for this_line in all_line_products:
 
-        final_msname = f"{this_targ}_{this_config}_{this_line}.ms"
+#         final_msname = f"{this_targ}_{this_config}_{this_line}.ms"
 
-        full_final_msname = f"{data_path}/imaging/{this_targ}/{final_msname}"
+#         full_final_msname = f"{data_path}/imaging/{this_targ}/{final_msname}"
 
-        if not os.path.exists(full_final_msname):
-            print(f"Unable to find an existing ms file: {full_final_msname}. Skipping tar")
-            continue
+#         if not os.path.exists(full_final_msname):
+#             print(f"Unable to find an existing ms file: {full_final_msname}. Skipping tar")
+#             continue
 
-        # Create a new tar file. Remove the old version if it already exists.
-        tar_msname = f"{export_path}/{final_msname}.tar"
-        if os.path.exists(tar_msname):
-            print(f"Found existing {tar_msname}. Deleting and creating new tar file.")
-            os.remove(tar_msname)
+#         # Create a new tar file. Remove the old version if it already exists.
+#         tar_msname = f"{export_path}/{final_msname}.tar"
+#         if os.path.exists(tar_msname):
+#             print(f"Found existing {tar_msname}. Deleting and creating new tar file.")
+#             os.remove(tar_msname)
 
-        with tarfile.open(tar_msname, "w") as tfile:
-            tfile.add(full_final_msname, recursive=True)
+#         with tarfile.open(tar_msname, "w") as tfile:
+#             tfile.add(full_final_msname, recursive=True)

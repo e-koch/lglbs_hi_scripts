@@ -8,6 +8,9 @@
 		},
 		{
 			"path": "../phangs_vla"
+		},
+		{
+			"path": "../VLA_HI_DESI_Na"
 		}
 	],
 	"settings": {}

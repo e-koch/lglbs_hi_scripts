@@ -55,7 +55,7 @@ this_targ = 'm33'
 
 # all_configs = ['C+D', 'A+B+C+D', 'B+C+D', 'A+B+C']
 # all_configs = ['C+D'] #, 'B+C+D']
-all_configs = ['D']
+all_configs = ['D', 'C+D']
 
 this_uvh.set_targets(only=[this_targ])
 this_uvh.set_interf_configs(only=all_configs)
@@ -64,8 +64,8 @@ this_uvh.set_interf_configs(only=all_configs)
 #                      'oh1612', 'oh1720', 'oh1665', 'oh1667']
 
 # all_line_products = ['oh1612', 'oh1720', 'oh1665', 'oh1667']
-# all_line_products = ['hi21cm_0p8kms', 'hilores', 'himidres']
-all_line_products = ['hilores', ]
+all_line_products = ['hi21cm_0p8kms', 'himidres', 'hi21cm']
+# all_line_products = ['hilores', ]
 
 # this_uvh.set_line_products(only=all_line_products)
 
@@ -81,7 +81,8 @@ for this_line in all_line_products:
     this_uvh.set_line_products(only=[this_line])
 
     this_uvh.loop_stage_uvdata(do_copy=True,
-                               do_contsub=False,  # NOTE: contsub turned off!
+                               do_contsub=True,  # NOTE: contsub turned off!
+                            #    do_contsub=False,  # NOTE: contsub turned off!
                                 do_extract_line=False, do_extract_cont=False,
                                 do_remove_staging=False, overwrite=True,
                                 strict_config=False,

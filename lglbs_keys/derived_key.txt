@@ -43,7 +43,7 @@ all		all	strictmask_kw	{'min_pix':None,'min_area':None}
 
 all		all	broadmask_kw	{}
 
-all		all	phys_res	{'80pc':80.0,'120pc':120.0}
+all		all	phys_res	{'120pc':120.0}
 all		all	ang_res		{'30as':30.0}
 
 # Change this as more data come in

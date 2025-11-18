@@ -14,11 +14,19 @@ from spectral_cube import SpectralCube
 from cube_analysis.interactive_masking import make_interactive_cube_mask
 
 
-vla_data_path = Path("/reduction10/erickoch/LGLBS/line_imaging/postprocess/")
+# vla_data_path = Path("/reduction10/erickoch/LGLBS/line_imaging/postprocess/")
+vla_data_path = Path("/reduction/erickoch/LGLBS/line_imaging/postprocess/")
 
 
-galaxy_names = ['ngc6822', 'ic10', 'wlm', 'ic1613']
-hi_cube_name_keys = ['hilores', 'hi21cm_1p2kms', 'himidres']
+# galaxy_names = ['ngc6822', 'ic10', 'wlm', 'ic1613']
+# hi_cube_name_keys = ['hilores', 'hi21cm_1p2kms', 'himidres']
+
+galaxy_names = ['m31']
+hi_cube_name_keys = ['hilores']
+
+# galaxy_names = ['m33']
+# hi_cube_name_keys = ['himidres']
+
 
 for this_gal in galaxy_names:
     print(f"Working on {this_gal}")
@@ -51,3 +59,13 @@ for this_gal in galaxy_names:
 
             make_interactive_cube_mask(this_vla_filename, output_maskname,
                                        in_memory=True)
+
+    # CORRECTION: For M31 when smoothed to ~120 pc beam, the mask needs to be expanded a bit to fully capture all foreground HI.
+
+    if this_gal == 'm31':
+
+        # Take channel 29 and expand to 32 with minor erosion to account for M31's rotation.
+        with fits.open(output_maskname, mode='update') as hdu:
+            hdu[0].data[30:33] = hdu[0].data[29]
+
+

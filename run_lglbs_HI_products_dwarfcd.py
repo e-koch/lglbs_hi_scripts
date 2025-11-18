@@ -151,14 +151,11 @@ if do_strictmask:
         mask_kwargs=mask_kwargs,
         overwrite=True)
 
-<<<<<<< HEAD
-=======
     # Now filter out Galactic HI emission that remains
     # in the VLA cube (particularly for NGC6822)
 
     this_mask_file = this_infile.replace('.fits','_strictmask.fits')
 
->>>>>>> 24ab4b9 (Long overdue update, including foreground separation, feathering scripts, rms estimation, and cluster imaging)
     t1 = time.time()
 
     print(f"Strict masking took: {t1-t0}")

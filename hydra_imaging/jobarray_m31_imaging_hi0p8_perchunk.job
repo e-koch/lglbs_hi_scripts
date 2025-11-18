@@ -12,7 +12,7 @@
 #  D config: 12 GB memory needed
 ##$ -l mres=16G,h_data=4G,h_vmem=4G,himem
 
-#  C+D config: 27 GB memory needed
+#  C+D config: 25 GB memory needed
 ##$ -l mres=32G,h_data=8G,h_vmem=8G,himem
 
 echo + `date` $JOB_NAME started on $HOSTNAME in $QUEUE with jobID=$JOB_ID and taskID=$SGE_TASK_ID

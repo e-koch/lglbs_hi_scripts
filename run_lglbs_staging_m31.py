@@ -61,7 +61,8 @@ this_uvh.set_interf_configs(only=all_configs)
 #                      'oh1612', 'oh1720', 'oh1665', 'oh1667']
 
 # all_line_products = ['oh1612', 'oh1720', 'oh1665', 'oh1667']
-all_line_products = ['hilores', 'himidres', 'hi21cm_0p8kms', 'hi']
+all_line_products = ['himidres', 'hi21cm_0p8kms', 'hi']
+# all_line_products = ['hilores']
 
 # this_uvh.set_line_products(only=all_line_products)
 
@@ -98,6 +99,8 @@ for this_line in all_line_products:
 
 
 # Now we'll tar up the MS files
+
+sys.exit(0)
 
 import tarfile
 

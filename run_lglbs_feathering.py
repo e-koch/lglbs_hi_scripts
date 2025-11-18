@@ -16,20 +16,23 @@ from uvcombine import feather_simple_cube
 
 from tqdm import tqdm
 
-sd_data_path = Path("/reduction10/erickoch/LGLBS/hi_feathering/")
-vla_data_path = Path("/reduction10/erickoch/LGLBS/C+D_HI_2023/")
+# sd_data_path = Path("/reduction10/erickoch/LGLBS/hi_feathering/")
+# vla_data_path = Path("/reduction10/erickoch/LGLBS/C+D_HI_2023/")
+sd_data_path = Path("/reduction/erickoch/LGLBS/hi_feathering/")
+# vla_data_path = Path("/reduction/erickoch/LGLBS/line_imaging/imaging/m33/")
+vla_data_path = Path("/reduction/erickoch/LGLBS/line_imaging/imaging/m31/")
 
-galaxy_dict = {'ngc6822': ["NGC6822-center_cube_ircs_no_galactic_component.fits",
-                           0.92],
+
+galaxy_dict = {\
+               # 'm33': ['m33_gbt_vlsr.fits', 1.10],
+               'm31': ["M31_GBT_corrected.fits", 1.0],
+               # 'ngc6822': ["NGC6822-center_cube_ircs_no_galactic_component.fits",
+               #            0.92],
                # 'ic10': ['IC10_GBT_Jy.fits',
                #          0.96],
                # 'wlm': ['WLM_GBT.FITS',
                #         1.14],
-<<<<<<< HEAD
-               # 'ic1613': ['IC1613_GBT_vegas_K_noresample_lsrk.fits', 
-=======
                # 'ic1613': ['IC1613_GBT_vegas_K_noresample_lsrk.fits',
->>>>>>> 24ab4b9 (Long overdue update, including foreground separation, feathering scripts, rms estimation, and cluster imaging)
                #            0.89],
                }
 
@@ -40,6 +43,7 @@ hi_cube_name_keys = ['hilores', 'hi21cm_1p2kms', 'himidres']
 
 for this_key in hi_cube_name_keys:
 
+    # vla_filenames = list(vla_data_path.glob(f"*{this_key}.fits"))
     vla_filenames = list(vla_data_path.glob(f"*{this_key}.fits"))
     print(f"Found these files: {[this_name.name for this_name in vla_filenames]}")
 
@@ -63,20 +67,30 @@ for this_key in hi_cube_name_keys:
 
         #this_specslice_low, this_specslice_high = galaxy_dict[this_gal][2]
 
-        vla_cube = SpectralCube.read(vla_data_path / this_vla_filename)
+        vla_cube = SpectralCube.read(vla_data_path / this_vla_filename,
+                                     use_dask=True)
         vla_cube.allow_huge_operations = True
 
         # VLA spatial mask. Account for coverage across all channels (in case some are empty)
         vla_spatial_mask = np.any(vla_cube.mask.include(), axis=0)
 
         # Nick's reprocessed and gridded GBT cube.
-        gbt_cube = SpectralCube.read(sd_data_path / this_gbt_filename)
+        gbt_cube = SpectralCube.read(sd_data_path / this_gbt_filename,
+                                     use_dask=True)
         gbt_cube.allow_huge_operations = True
         print(f"GBT original bunit: {gbt_cube.unit}")
 
         # Use the proper beam model size, not the one in the header!
-        gbt_beam_model = Beam(area=3.69e5 *u.arcsec**2)
-        # gbt_beam_model.major.to(u.arcmin)
+        if this_gal != "m33":
+
+            gbt_beam_model = Beam(area=3.69e5 *u.arcsec**2)
+            gbt_beam_model.major.to(u.arcmin)
+
+            print(f"Using proper GBT beam area model with {gbt_beam_model.major.to(u.arcmin)} arcmin FWHM")
+        else:
+            print(f"Using M33 GBT beam model with 9.8 arcmin FWHM")
+            # See Koch+18 for difference in the gridding kernel used for M33
+            gbt_beam_model = Beam(major=9.8*u.arcmin)
 
         vel_unit = u.m / u.s
 
@@ -134,6 +148,10 @@ for this_key in hi_cube_name_keys:
             hdulist[0].header['BUNIT'] = str(gbt_bunit)
             hdulist[0].header.update(gbt_cube.beam.to_header_keywords())
 
+            if len(hdulist) > 1:
+                # Remove the beam table
+                del hdulist[1]
+
             hdulist.flush()
 
         print("Per channel reprojection")
@@ -151,7 +169,8 @@ for this_key in hi_cube_name_keys:
                     hdulist.flush()
 
         # Allow reading in the whole cube.
-        gbt_cube_specinterp_reproj = SpectralCube.read(gbt_reproj_filename)
+        gbt_cube_specinterp_reproj = SpectralCube.read(gbt_reproj_filename,
+                                                       use_dask=True,)
         gbt_cube_specinterp_reproj.allow_huge_operations = True
 
         # And specifically apply the same PB coverage
@@ -160,12 +179,21 @@ for this_key in hi_cube_name_keys:
         # gbt_cube_specinterp_reproj.to(u.K).write(sd_data_path / f"{this_gbt_filename[:-5]}_vlamatch_{this_key}.fits",
         #                                           overwrite=True)
 
+        # Convolve the VLA data to the common beam:
+        com_vla_beam = vla_cube.beams.common_beam()
+        print(f"Convolving VLA to common beam: {com_vla_beam}")
+        vla_cube = vla_cube.convolve_to(com_vla_beam)
+        vla_cube.allow_huge_operations = True
+
         # Feather with the SD scale factor applied
         feathered_cube = feather_simple_cube(vla_cube.to(u.K),
-                                        gbt_cube_specinterp_reproj.to(u.K),
-                                        allow_lo_reproj=False,
-                                        allow_spectral_resample=False,
-                                        lowresscalefactor=this_scfactor)
+                                             gbt_cube_specinterp_reproj.to(u.K),
+                                             allow_lo_reproj=False,
+                                             allow_spectral_resample=False,
+                                             allow_huge_operations=True,
+                                             lowresscalefactor=this_scfactor,
+                                             use_dask=True,
+                                             use_save_to_tmp_dir=True)
 
         # NaN out blank areas post-FFT.
         feathered_cube = feathered_cube.with_mask(vla_cube.mask)
@@ -174,18 +202,19 @@ for this_key in hi_cube_name_keys:
         this_feathered_filename = vla_data_path / f"{this_vla_filename.name[:-5]}_feathered.K.fits"
 
         feathered_cube.write(this_feathered_filename, overwrite=True)
-<<<<<<< HEAD
-=======
-
-
 
         # Divide by the PB.
         pb_cube = SpectralCube.read(vla_data_path / this_vla_filename.name.replace(".fits", "_pb.fits"))
 
-        feathered_cube_pbcorr = feather_simple_cube / pb_cube
+        feathered_cube.allow_huge_operations = True
+        pb_cube.allow_huge_operations = True
+
+        feathered_cube_pbcorr = feathered_cube / pb_cube.unitless_filled_data[:]
         this_feathered_filename = vla_data_path / f"{this_vla_filename.name[:-5]}_feathered.K.fits"
         feathered_cube_pbcorr.minimal_subcube().write(this_feathered_filename, overwrite=True)
 
+
+from glob import glob
 
 for this_linename in hi_cube_name_keys:
 
@@ -193,11 +222,12 @@ for this_linename in hi_cube_name_keys:
 
     for this_name in all_filenames:
         print(this_name)
-        cube = SpectralCube.read(this_name); cube.allow_huge_operations = True
-        pb_cube = SpectralCube.read(this_name.replace("feathered.K.fits", "pb.fits")); pb_cube.allow_huge_operations = True
-        cube_pbcorr = (cube / pb_cube.unitless_filled_data[:]).minimal_subcube()
+        # cube = SpectralCube.read(this_name)
+        # cube.allow_huge_operations = True
+        # pb_cube = SpectralCube.read(this_name.replace("feathered.K.fits", "pb.fits"))
+        # pb_cube.allow_huge_operations = True
+        # cube_pbcorr = (cube / pb_cube.unitless_filled_data[:]).minimal_subcube()
         this_target, this_config = this_name.split("_")[:2]
         name_stem = this_name.split("_feathered.K.fits")[0]
         output_filename = f"../line_imaging/postprocess/{this_target}/{this_target}_{this_config}+tp_{this_linename}_pbcorr_trimmed_k.fits"
         cube_pbcorr.write(output_filename, overwrite=True)
->>>>>>> 24ab4b9 (Long overdue update, including foreground separation, feathering scripts, rms estimation, and cluster imaging)
