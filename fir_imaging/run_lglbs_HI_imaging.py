@@ -38,7 +38,7 @@ this_galaxy = sys.argv[-5]
 this_chunk_num = this_idx-1
 
 # Locate the master key
-key_file = "/home/erickoch/lglbs_hi_scripts/lglbs_keys/master_key_hydra.txt"
+key_file = "/home/ekoch/lglbs_hi_scripts/lglbs_keys/master_key_fir.txt"
 
 
 # Set the logging
