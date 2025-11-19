@@ -13,11 +13,11 @@
 # For now, just pass the target name from the cmd line with sbatch.
 # Will want the ability to pass an array of target names later.
 
-export this_idx=${SLURM_ARRAY_TASK_ID}
-export this_chunksize=25
-export this_config='A+B+C+D'
-export this_line_product='hilores'
 export this_galaxy=$1
+export this_line_product='hilores'
+export this_config='A+B+C+D'
+export this_chunksize=25
+export this_idx=${SLURM_ARRAY_TASK_ID}
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
@@ -64,5 +64,7 @@ cd $curr_dir
 
 
 # Step 2: Run CASA to do staging.
-xvfb-run -a $casa_executable --rcdir ~/.casa --nologger --nogui --log2term -c $casa_script $this_idx $this_chunksize $this_config $this_line_product $this_galaxy
+export script_args = "$this_galaxy $this_line_product $this_config $this_chunksize $this_idx"
+echo "Args passed to script: $script_args"
+xvfb-run -a $casa_executable --rcdir ~/.casa --nologger --nogui --log2term -c $casa_script $script_args
 
