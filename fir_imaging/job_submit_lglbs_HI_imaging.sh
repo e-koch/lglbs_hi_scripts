@@ -64,7 +64,7 @@ cd $curr_dir
 
 
 # Step 2: Run CASA to do staging.
-export script_args = "$this_galaxy $this_line_product $this_config $this_chunksize $this_idx"
+export script_args="$this_galaxy $this_line_product $this_config $this_chunksize $this_idx"
 echo "Args passed to script: $script_args"
 xvfb-run -a $casa_executable --rcdir ~/.casa --nologger --nogui --log2term -c $casa_script $script_args
 
