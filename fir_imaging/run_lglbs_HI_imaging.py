@@ -72,6 +72,6 @@ this_imh = ImagingChunkedHandler(this_galaxy,
 print(f"Chunk {this_chunk_num} of {this_imh.nchunks}")
 
 this_imh.run_imaging(chunk_num=this_chunk_num,
-                     do_all=True,)
-
+                     do_all=True,
+                     do_recombine_cubes=False)
 
