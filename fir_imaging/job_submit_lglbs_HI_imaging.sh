@@ -2,9 +2,9 @@
 #SBATCH --time=72:00:00
 #SBATCH --mem=256G
 #SBATCH --cpus-per-task=16
-#SBATCH --array=0-1
-#SBATCH --job-name=lglbs-staging-%A-%a
-#SBATCH --output=lglbs-staging-%A-%a.out
+#SBATCH --array=1-2
+#SBATCH --job-name=lglbs-hi-imaging-%A-%a
+#SBATCH --output=lglbs-hi-imaging-%A-%a.out
 #SBATCH --mail-user=ekoch@ualberta.ca
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
