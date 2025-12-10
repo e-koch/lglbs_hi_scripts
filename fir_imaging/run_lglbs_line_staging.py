@@ -89,18 +89,17 @@ for this_line in all_line_products:
     this_uvh.loop_stage_uvdata(do_copy=True, do_contsub=True,
                                 do_extract_line=False, do_extract_cont=False,
                                 do_remove_staging=False, overwrite=True,
-                                strict_config=False,
-                                statwt_line=False, statwt_cont=False)
+                                strict_config=False,)
 
     this_uvh.loop_stage_uvdata(do_copy=False, do_contsub=False,
                                 do_extract_line=True, do_extract_cont=False,
-                                do_remove_staging=False, overwrite=True, strict_config=False,
-                                statwt_line=False, statwt_cont=False)
+                                do_remove_staging=False, overwrite=True,
+                                strict_config=False,)
 
     this_uvh.loop_stage_uvdata(do_copy=False, do_contsub=False,
                                 do_extract_line=False, do_extract_cont=False,
-                                do_remove_staging=True, overwrite=True, strict_config=False,
-                                statwt_line=False, statwt_cont=False)
+                                do_remove_staging=True, overwrite=True,
+                                strict_config=False,)
 
 
 # Now we'll tar up the MS files
