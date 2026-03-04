@@ -17,6 +17,8 @@ Produces staging for:
 
 import os
 import sys
+import tarfile
+
 
 # Locate the master key
 key_file = "/home/ekoch/lglbs_hi_scripts/lglbs_keys/master_key_fir.txt"
@@ -48,19 +50,22 @@ this_kh.make_missing_directories(imaging=True,
 ##############################################################################
 
 # this_targ = 'm31'
-this_targ = sys.argv[-1].lower()
+this_targ = sys.argv[-2].lower()
+
+this_config = sys.argv[-1]
 
 # Varying spatial coverage in A, B vs C, D. Specify central pointing only for these
 dwarfs_targs = ['wlm', 'ic1613', 'ic10']
 
-if this_targ in dwarfs_targs:
+if this_targ in dwarfs_targs and "A" in this_config:
     # Grab only the central pointing for the dwarfs
     this_targ += 'ctr'
 
 # all_configs = ['C+D', 'A+B+C+D', 'B+C+D', 'A+B+C']
 # all_configs = ['C+D', 'D'] #, 'B+C+D']
+# all_configs = ['A+B+C+D']
 
-all_configs = ['A+B+C+D']
+all_configs = [this_config]
 
 this_uvh.set_targets(only=[this_targ])
 this_uvh.set_interf_configs(only=all_configs)
@@ -68,10 +73,12 @@ this_uvh.set_interf_configs(only=all_configs)
 # all_line_products = ['hi21cm', 'hi21cm_0p8kms', 'hilores', 'himidres',
 #                      'oh1612', 'oh1720', 'oh1665', 'oh1667']
 
-# all_line_products = ['oh1612', 'oh1720', 'oh1665', 'oh1667']
-# all_line_products = ['himidres', 'hi21cm_0p8kms', 'hi']
-
-all_line_products = ['hilores']
+all_line_products = []
+# all_line_products += ['oh1612', 'oh1720', 'oh1665', 'oh1667']
+all_line_products += ['himidres']
+all_line_products += ['hilores']
+all_line_products += ['hi21cm_0p8kms']
+all_line_products += ['hi21cm']
 
 # this_uvh.set_line_products(only=all_line_products)
 
@@ -81,49 +88,68 @@ this_uvh.set_no_cont_products(True)
 # Run staging
 ##############################################################################
 
-for this_line in all_line_products:
-    print(f"Working on {this_line}")
+# Make versions with and without contsub
 
-    this_uvh.set_line_products(only=[this_line])
+# for do_contsub in [False, True]:
+for do_contsub in [True]:
 
-    this_uvh.loop_stage_uvdata(do_copy=True, do_contsub=True,
-                                do_extract_line=False, do_extract_cont=False,
-                                do_remove_staging=False, overwrite=True,
-                                strict_config=False,)
+    if not do_contsub:
+        contsub_str = "_nocontsub"
+    else:
+        contsub_str = ""
 
-    this_uvh.loop_stage_uvdata(do_copy=False, do_contsub=False,
-                                do_extract_line=True, do_extract_cont=False,
-                                do_remove_staging=False, overwrite=True,
-                                strict_config=False,)
+    for this_line in all_line_products:
+        print(f"Working on {this_line}")
 
-    this_uvh.loop_stage_uvdata(do_copy=False, do_contsub=False,
-                                do_extract_line=False, do_extract_cont=False,
-                                do_remove_staging=True, overwrite=True,
-                                strict_config=False,)
+        this_uvh.set_line_products(only=[this_line])
+
+        this_uvh.loop_stage_uvdata(do_copy=True, do_contsub=do_contsub,
+                                    do_extract_line=False, do_extract_cont=False,
+                                    do_remove_staging=False, overwrite=True,
+                                    strict_config=False,)
+
+        this_uvh.loop_stage_uvdata(do_copy=False, do_contsub=False,
+                                    do_extract_line=True, do_extract_cont=False,
+                                    do_remove_staging=False, overwrite=True,
+                                    strict_config=False,)
+
+        this_uvh.loop_stage_uvdata(do_copy=False, do_contsub=False,
+                                    do_extract_line=False, do_extract_cont=False,
+                                    do_remove_staging=True, overwrite=True,
+                                    strict_config=False,)
 
 
-# Now we'll tar up the MS files
+        # Now we'll tar up the MS files _and_ rename files if they are not contsub'd
 
-# sys.exit(0)
+        for this_config in all_configs:
 
-# import tarfile
+            final_msname = f"{this_targ}_{this_config}_{this_line}.ms"
 
-# for this_config in all_configs:
-#     for this_line in all_line_products:
+            full_final_msname = f"{data_path}/imaging/{this_targ}/{final_msname}"
 
-#         final_msname = f"{this_targ}_{this_config}_{this_line}.ms"
+            if not os.path.exists(full_final_msname):
+                print(f"Unable to find an existing ms file: {full_final_msname}. Skipping tar")
+                continue
 
-#         full_final_msname = f"{data_path}/imaging/{this_targ}/{final_msname}"
+            if not do_contsub:
+                # Rename the MS folder to avoid overwriting the contsub version
+                final_msname_nocontsub = f"{this_targ}_{this_config}_{this_line}{contsub_str}.ms"
 
-#         if not os.path.exists(full_final_msname):
-#             print(f"Unable to find an existing ms file: {full_final_msname}. Skipping tar")
-#             continue
+                if os.path.exists(final_msname_nocontsub):
+                    # Remove the old version:
+                    os.system(f"rm -r {final_msname_nocontsub}")
 
-#         # Create a new tar file. Remove the old version if it already exists.
-#         tar_msname = f"{export_path}/{final_msname}.tar"
-#         if os.path.exists(tar_msname):
-#             print(f"Found existing {tar_msname}. Deleting and creating new tar file.")
-#             os.remove(tar_msname)
+                os.rename(final_msname, final_msname_nocontsub)
 
-#         with tarfile.open(tar_msname, "w") as tfile:
-#             tfile.add(full_final_msname, recursive=True)
+                final_msname = final_msname_nocontsub
+                full_final_msname = f"{data_path}/imaging/{this_targ}/{final_msname}"
+
+
+            # Create a new tar file. Remove the old version if it already exists.
+            tar_msname = f"{export_path}/{final_msname}.tar"
+            if os.path.exists(tar_msname):
+                print(f"Found existing {tar_msname}. Deleting and creating new tar file.")
+                os.remove(tar_msname)
+
+            with tarfile.open(tar_msname, "w") as tfile:
+                tfile.add(full_final_msname, recursive=True)

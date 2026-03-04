@@ -1,14 +1,12 @@
 #!/bin/bash
 #SBATCH --time=100:00:00
-#SBATCH --cpus-per-task=64
+#SBATCH --cpus-per-task=32
 #SBATCH --mem=256G
-#SBATCH --array=1-6
-#SBATCH --job-name=lglbs-hi-imaging-%A-%a
-#SBATCH --output=lglbs-hi-imaging-%A-%a.out
+#SBATCH --job-name=lglbs-hi-gather-postprocess-%J
+#SBATCH --output=lglbs-hi-gather-postprocess-%J.out
 #SBATCH --mail-user=ekoch@ualberta.ca
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-
 
 
 # For now, just pass the target name from the cmd line with sbatch.
@@ -39,14 +37,11 @@ export CASALD_LIBRARY_PATH=$LD_LIBRARY_PATH
 # Ensure no time overlap in job start times
 python3 -c "import time, random; time.sleep(random.randint(2, 120))"
 
-export data_path="/home/ekoch/scratch/VLAXL_imaging/MeasurementSets/"
-
 export casa_executable="/home/ekoch/casa-6.6.1-17-pipeline-2024.1.0.8/bin/casa"
-export casa_script="/home/ekoch/lglbs_hi_scripts/fir_imaging/run_lglbs_HI_imaging.py"
+export casa_script="/home/ekoch/lglbs_hi_scripts/fir_imaging/run_lglbs_HI_gather_postprocess.py"
 # export casa_job_config_file=/home/ekoch/lglbs_hi_scripts/fir_imaging/line_staging_imaging.${SLURM_ARRAY_TASK_ID}.jobconfig.txt
 
 
-export script_args="$this_galaxy $this_line_product $this_config $this_chunksize $this_idx"
+export script_args="$this_galaxy $this_config $this_line_product $this_chunksize"
 echo "Args passed to script: $script_args"
 xvfb-run -a $casa_executable --rcdir ~/.casa --nologger --nogui --log2term -c $casa_script $script_args
-

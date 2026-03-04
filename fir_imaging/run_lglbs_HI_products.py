@@ -19,7 +19,8 @@ from phangsPipeline import handlerKeys as kh
 from phangsPipeline import handlerDerived as der
 
 # Initialize key handler
-key_file = "/home/erickoch/lglbs_hi_scripts/lglbs_keys/master_key_hydra.txt"
+# key_file = "/home/erickoch/lglbs_hi_scripts/lglbs_keys/master_key_hydra.txt"
+key_file = "/home/ekoch/lglbs_hi_scripts/lglbs_keys/master_key_fir.txt"
 
 this_kh = kh.KeyHandler(master_key=key_file)
 

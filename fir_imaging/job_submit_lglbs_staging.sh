@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --time=72:00:00
-#SBATCH --mem=256G
+#SBATCH --time=216:00:00
+#SBATCH --mem=64G
 #SBATCH --cpus-per-task=16
 #SBATCH --job-name=lglbs-staging-%J
 #SBATCH --output=lglbs-staging-%J.out
@@ -12,6 +12,7 @@
 # For now, just pass the target name from the cmd line with sbatch.
 # Will want the ability to pass an array of target names later.
 export target_name=$1
+export config_name=$2
 
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
@@ -60,5 +61,5 @@ cd $curr_dir
 
 
 # Step 2: Run CASA to do staging.
-xvfb-run -a $casa_executable --rcdir ~/.casa --nologger --nogui --log2term -c $casa_script $target_name
+xvfb-run -a $casa_executable --rcdir ~/.casa --nologger --nogui --log2term -c $casa_script $target_name $config_name
 
