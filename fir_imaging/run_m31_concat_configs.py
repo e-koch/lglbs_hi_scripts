@@ -46,9 +46,8 @@ for this_line in all_line_products:
         shutil.copy2(src, dst)
 
         print(f"  Extracting {tar_name}")
-        # Tars were created with absolute paths (leading / stripped), so
-        # extracting to / restores files to their original scratch locations.
-        subprocess.run(["tar", "-xf", dst, "-C", "/"], check=True)
+        # Tars store just the bare MS name, so extract into local_dir.
+        subprocess.run(["tar", "-xf", dst, "-C", local_dir], check=True)
         os.remove(dst)
 
         per_config_ms.append(os.path.join(local_dir, ms_name))
