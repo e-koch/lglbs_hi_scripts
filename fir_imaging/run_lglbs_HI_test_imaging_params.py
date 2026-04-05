@@ -43,6 +43,7 @@ this_kh.make_missing_directories(imaging=True, derived=True, postprocess=True, r
 
 this_tih = tih.TestImagingHandler(key_handler=this_kh)
 
+this_tih.set_targets(only=[this_config])
 this_tih.set_interf_configs(only=[this_config])
 this_tih.set_line_products(only=[this_line_product])
 
