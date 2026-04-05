@@ -41,15 +41,17 @@ this_kh.make_missing_directories(imaging=True, derived=True, postprocess=True, r
 # Set up what we do this run
 ##############################################################################
 
+print(f"Working on {this_galaxy}, {this_config}, {this_line_product}")
+
 this_tih = tih.TestImagingHandler(key_handler=this_kh)
 
-this_tih.set_targets(only=[this_config])
+this_tih.set_targets(only=[this_galaxy])
 this_tih.set_interf_configs(only=[this_config])
 this_tih.set_line_products(only=[this_line_product])
 
 
 # Define test parameters
-robusts = np.round(np.arange(-2.0, 2.1, 0.25), 2)
+robusts = np.round(np.arange(-2.0, 2.1, 1.0), 2)
 
 this_tih.set_test_params(
     weightings=['briggs'] * len(robusts),
