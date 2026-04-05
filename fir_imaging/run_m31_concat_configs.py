@@ -15,7 +15,6 @@ For each line product, this script:
 
 import os
 import shutil
-import subprocess
 import tarfile
 
 from casatasks import concat  # type: ignore  # only available inside CASA
@@ -46,8 +45,18 @@ for this_line in all_line_products:
         shutil.copy2(src, dst)
 
         print(f"  Extracting {tar_name}")
-        # Tars store just the bare MS name, so extract into local_dir.
-        subprocess.run(["tar", "-xf", dst, "-C", local_dir], check=True)
+        # The tar contains absolute paths (e.g. home/ekoch/scratch/.../m31_A_hilores.ms/...).
+        # Strip all leading components up to and including the .ms directory so
+        # the MS lands directly in local_dir.
+        with tarfile.open(dst, "r") as tfile:
+            for member in tfile.getmembers():
+                parts = member.name.replace("\\", "/").split("/")
+                # Find the component that ends with .ms and drop everything before it
+                ms_idx = next((i for i, p in enumerate(parts) if p.endswith(".ms")), None)
+                if ms_idx is None:
+                    continue
+                member.name = "/".join(parts[ms_idx:])
+                tfile.extract(member, path=local_dir)
         os.remove(dst)
 
         per_config_ms.append(os.path.join(local_dir, ms_name))
