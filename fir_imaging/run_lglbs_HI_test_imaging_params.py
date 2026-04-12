@@ -61,7 +61,8 @@ this_tih.set_test_params(
 
 # Run the test imaging loop
 # To remake any images, set overwrite=True
-results = this_tih.loop_test_imaging(overwrite=True)
+results = this_tih.loop_test_imaging(overwrite=True,
+                                     channel=1,)
 
 # Generate all diagnostic plots and export CSV in one call
 # Exports an HTML report showing the results table and diagnostic plots
