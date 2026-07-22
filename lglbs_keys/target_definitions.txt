@@ -41,6 +41,16 @@ ic1613ctr	01h04m47.79s  +02d07m04.0s	-238	210
 
 m31		00h42m44.35s  +41d16m08.6s	-296	700
 
+# M31 strip tiles for A+B+C+D imaging: 4 column-groups along the 49-pointing
+# hex strip (14 columns, 17.4' spacing, PA~37 deg E of N). Phase centers are
+# the core-pointing bounding-box centers. Field assignments are defined in
+# fir_imaging/m31_tile_definitions.py; tiles are recombined via
+# linearmosaic_definitions.txt. See casa_on_fir_imaging_guide.md (sec 8.1).
+m31_1		00h38m03.59s  +40d06m58.5s	-296	700
+m31_2		00h41m07.71s  +40d51m57.2s	-296	700
+m31_3		00h43m33.02s  +41d28m14.9s	-296	700
+m31_4		00h46m07.25s  +42d07m57.7s	-296	700
+
 m33		01h33m50.89s  +30d39m36.8s	-180	500
 
 ngc6822		19h44m57.74s  -14d48m12.4s	-44	210

@@ -35,3 +35,9 @@
 #ngc6822_4  	 ngc6822
 #ngc6822_5  	 ngc6822
 #ngc6822_6  	 ngc6822
+
+# M31 strip tiles: image and postprocess all tiles in the m31 directory.
+# m31_1		m31
+# m31_2		m31
+# m31_3		m31
+# m31_4		m31

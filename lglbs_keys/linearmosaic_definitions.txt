@@ -23,6 +23,11 @@
 
 ##########################################################################
 
+# NOTE on column order: per phangsPipeline/utilsKeyReaders.read_linmos_key
+# (read_nametoname_key with as_list=True), Column 1 is the MOSAIC name and
+# Column 2 is the PART, i.e. "m31  m31_1". The commented ngc6822 entries
+# below are in the reversed (incorrect) order — kept for history only.
+
 #ngc6822_1  	 ngc6822
 #ngc6822_2  	 ngc6822
 #ngc6822_3  	 ngc6822
@@ -33,4 +38,10 @@
 #ngc6822_8  	 ngc6822
 #ngc6822_9  	 ngc6822
 #ngc6822_10  	 ngc6822
+
+# M31 strip tiles -> m31 linear mosaic
+m31  	 m31_1
+m31  	 m31_2
+m31  	 m31_3
+m31  	 m31_4
 
