@@ -8,8 +8,15 @@ suitable for manual flagging with flagdata(). Per SPW, saves:
   - <vis>_spw<N>_flagcmds.txt         : flagdata mode='list' commands
   - <vis>_spw<N>_<ant>_scans<X>_weights.png : weight vs scan whisker plots
 
+After the per-SPW analysis, the hub-antenna flag commands are applied to the
+MS with flagdata (all SPWs merged into <base>_flagcmds.txt), and a flag
+percentage summary before/after is written to <base>_flag_summary.txt.
+
 Run with:
-    casa --nologger --nogui --log2term -c find_weight_outliers.py <vis>
+    casa --nologger --nogui --log2term -c find_weight_outliers.py <vis> [outdir]
+
+Outputs go in [outdir] if given (created if needed), else next to the MS.
+Pass --no-apply after the MS (before outdir) to skip applying the flags.
 
 Load saved output:
     d = np.load('your_spw0_weight_outliers.npy', allow_pickle=True).item()
@@ -27,13 +34,31 @@ from datetime import datetime, timedelta
 
 _MJD_EPOCH = datetime(1858, 11, 17)
 
-vis             = sys.argv[-1]
+def _script_args():
+    """Arguments following this script's name on the casa -c command line."""
+    idx = max(i for i, a in enumerate(sys.argv) if a.endswith('find_weight_outliers.py'))
+    return sys.argv[idx + 1:]
+
+
+_args = _script_args()
+apply_flags = '--no-apply' not in _args
+_args = [a for a in _args if a != '--no-apply']
+vis             = _args[0].rstrip('/').rstrip(os.sep)
+outdir          = _args[1] if len(_args) > 1 else os.path.dirname(os.path.abspath(vis))
+os.makedirs(outdir, exist_ok=True)
 target_chan     = 1      # which channel to sample for weight statistics
 threshold_sigma = 100.0  # flag rows where weight > median + N * scaled-MAD
 hub_threshold   = 0.9    # fraction of scan antennas a hub must have outlier baselines with
 scan_context    = 10     # number of scans either side of an outlier group to plot
 
-_ = listobs(vis, listfile=f"{vis}.listobs.txt", overwrite=True)
+vis_base = os.path.join(outdir, os.path.splitext(os.path.basename(vis))[0])
+
+# Remove stale per-SPW flag command files from any previous run
+import glob
+for _old in glob.glob(f"{vis_base}_spw*_flagcmds.txt"):
+    os.remove(_old)
+
+_ = listobs(vis, listfile=f"{vis_base}.listobs.txt", overwrite=True)
 
 # --- Get observation ID and date ---
 tb.open(vis + '/OBSERVATION')
@@ -63,7 +88,55 @@ use_weight_spectrum = 'WEIGHT_SPECTRUM' in tb.colnames()
 tb.close()
 print(f"Using {'WEIGHT_SPECTRUM' if use_weight_spectrum else 'WEIGHT'}")
 
-vis_base = os.path.splitext(vis.rstrip('/').rstrip(os.sep))[0]
+
+
+# ---------------------------------------------------------------------------
+# Flag summary helpers
+# ---------------------------------------------------------------------------
+
+def _pct(d):
+    return 100.0 * d['flagged'] / d['total'] if d['total'] else float('nan')
+
+
+def _flag_summary():
+    """Run flagdata(mode='summary') and return the report dict."""
+    return flagdata(vis=vis, mode='summary', spwchan=False, action='calculate',
+                    display='', flagbackup=False)
+
+
+def _write_flag_summary(path, before, after, applied_files):
+    def block(fh, title, key):
+        fh.write(f"{title}\n")
+        names = sorted(set(before.get(key, {})) | set(after.get(key, {})), key=str)
+        fh.write(f"{'name':>16} {'before %':>10} {'after %':>10} {'delta %':>10}\n")
+        for n in names:
+            b = _pct(before[key][n]) if n in before.get(key, {}) else float('nan')
+            a = _pct(after[key][n]) if n in after.get(key, {}) else float('nan')
+            fh.write(f"{str(n):>16} {b:>10.3f} {a:>10.3f} {a - b:>10.3f}\n")
+        fh.write("\n")
+
+    with open(path, 'w') as fh:
+        fh.write(f"Flag summary for {vis}\n")
+        fh.write(f"Observation: {obs_id} ({obs_date})\n\n")
+        fh.write("Flag command files applied:\n")
+        if applied_files:
+            for f in applied_files:
+                fh.write(f"  {f}\n")
+        else:
+            fh.write("  (none -- no hub antennas found, or --no-apply given)\n")
+        fh.write("\n")
+        fh.write(f"Total flagged (before): {_pct(before):.3f} %  "
+                 f"({int(before['flagged'])} / {int(before['total'])} data points)\n")
+        fh.write(f"Total flagged (after) : {_pct(after):.3f} %  "
+                 f"({int(after['flagged'])} / {int(after['total'])} data points)\n")
+        fh.write(f"Change                : {_pct(after) - _pct(before):+.3f} %\n\n")
+        block(fh, "Per SPW", 'spw')
+        block(fh, "Per field", 'field')
+        block(fh, "Per antenna", 'antenna')
+        block(fh, "Per scan", 'scan')
+
+
+flag_summary_before = _flag_summary()
 
 
 # ---------------------------------------------------------------------------
@@ -365,3 +438,30 @@ for ddid in range(n_spws):
                 _plot_hub_weights(vis_base, spw, hub_ant, grp,
                                   all_scans_sorted, ant1_names, ant2_names,
                                   scans, w)
+
+
+# ---------------------------------------------------------------------------
+# Apply flag commands and write before/after summary
+# ---------------------------------------------------------------------------
+
+spw_cmd_files = sorted(glob.glob(f"{vis_base}_spw*_flagcmds.txt"))
+applied = []
+if apply_flags and spw_cmd_files:
+    merged_path = f"{vis_base}_flagcmds.txt"
+    with open(merged_path, 'w') as out_fh:
+        for f in spw_cmd_files:
+            with open(f) as in_fh:
+                out_fh.write(in_fh.read())
+    print(f"\nApplying {merged_path}")
+    flagdata(vis=vis, mode='list', inpfile=merged_path, action='apply',
+             flagbackup=True)
+    applied = [merged_path]
+elif spw_cmd_files:
+    print("\n--no-apply given; flag commands not applied")
+else:
+    print("\nNo flag commands to apply")
+
+flag_summary_after = _flag_summary()
+summary_path = f"{vis_base}_flag_summary.txt"
+_write_flag_summary(summary_path, flag_summary_before, flag_summary_after, applied)
+print(f"Saved flag summary: {summary_path}")
