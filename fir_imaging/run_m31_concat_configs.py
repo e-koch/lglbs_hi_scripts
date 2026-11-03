@@ -17,7 +17,12 @@ import os
 import shutil
 import tarfile
 
+import numpy as np
 from casatasks import concat  # type: ignore  # only available inside CASA
+from casatools import table  # type: ignore  # only available inside CASA
+
+tb = table()
+freqtol_chanfrac = 0.2  # phangs_imaging_pipeline default
 
 targ = 'm31'
 configs = ['A', 'B', 'C', 'D']
@@ -65,7 +70,20 @@ for this_line in all_line_products:
     combined_ms_name = f"{targ}_A+B+C+D_{this_line}.ms"
     combined_ms = os.path.join(local_dir, combined_ms_name)
     print(f"  Concatenating into {combined_ms_name}")
-    concat(vis=per_config_ms, concatvis=combined_ms)
+    # Tolerance for merging SPWs: same rule as phangs_imaging_pipeline
+    # (casaVisRoutines.py: freqtol = freqtol_chanfrac * final chan width,
+    # freqtol_chanfrac=0.2). Tiny chan-width / frequency offsets between configs
+    # then merge into one SPW instead of creating a new SPW per config.
+    max_chan_hz = 0.
+    for ms in per_config_ms:
+        tb.open(os.path.join(ms, 'SPECTRAL_WINDOW'))
+        max_chan_hz = max(max_chan_hz, float(np.abs(tb.getcol('CHAN_WIDTH')).max()))
+        tb.close()
+    freqtol = f"{freqtol_chanfrac * max_chan_hz}Hz"
+    print(f"  Using freqtol={freqtol} ({freqtol_chanfrac} x max chan width {max_chan_hz} Hz)")
+    concat(vis=per_config_ms, concatvis=combined_ms, freqtol=freqtol,
+           dirtol='10arcsec',  # tiny fraction of the L-band primary beam
+           copypointing=False)
 
     # Step 4: Tar the combined MS
     combined_tar_name = combined_ms_name + ".tar"
