@@ -7,11 +7,9 @@ Run with:
     casa --nologger --nogui --log2term -c run_uvcontsub.py <ms>
 
 Not run for MSs with 'nocontsub' in the name (exits without changes).
-Handles both the CASA >=6.6 `uvcontsub` (outputvis/fitspec) and the older
-fitspw-style task (writes <vis>.contsub).
+Uses the new-style CASA `uvcontsub` task (outputvis/fitspec).
 """
 
-import inspect
 import os
 import shutil
 import sys
@@ -59,22 +57,12 @@ datacolumn = "corrected" if "CORRECTED_DATA" in tbl.colnames() else "data"
 tbl.close()
 print(f"datacolumn = {datacolumn}")
 
-params = inspect.signature(uvcontsub).parameters
-tmp_out = vis[:-3] + "_contsub_tmp.ms" if vis.endswith(".ms") else vis + "_contsub_tmp"
-if os.path.exists(tmp_out):
-    shutil.rmtree(tmp_out)
+result = vis[:-3] + "_contsub_tmp.ms" if vis.endswith(".ms") else vis + "_contsub_tmp"
+if os.path.exists(result):
+    shutil.rmtree(result)
 
-if "fitspec" in params:
-    uvcontsub(vis=vis, outputvis=tmp_out, fitspec=fitspw, fitorder=fitorder,
-              datacolumn=datacolumn)
-    result = tmp_out
-else:
-    # Old task: writes <vis>.contsub (continuum-subtracted CORRECTED/DATA -> DATA)
-    uvcontsub(vis=vis, fitspw=fitspw, fitorder=fitorder, solint="int",
-              combine="", want_cont=False)
-    result = vis + ".contsub"
-    if not os.path.exists(result):
-        raise RuntimeError(f"Expected {result} from old-style uvcontsub")
+uvcontsub(vis=vis, outputvis=result, fitspec=fitspw, fitorder=fitorder,
+          datacolumn=datacolumn)
 
 # --- Verify the output before replacing the original ---
 tbl.open(result)
