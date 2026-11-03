@@ -195,8 +195,9 @@ with open(summary, "w") as fh:
     for c, o in sorted(groups.items()):
         fh.write(f"{c:>6}  {','.join(map(str, o)):>6}  {group_p95[c]:.0f}\n")
     fh.write("\n")
-    fh.write(f"{'field':<16}{'cfg':>4}{'cell\"':>9}{'imsize':>7}{'psf_peak':>10}{'resid_rms':>12}  status\n")
+    fh.write("{:<16}{:>4}{:>12}{:>7}{:>10}{:>12}  status\n".format(
+        "field", "cfg", "cell_arcsec", "imsize", "psf_peak", "resid_rms"))
     for r in rows:
-        fh.write(f"{r['field']:<16}{r['config']:>4}{r['cell']:>9.3f}{r['imsize']:>7}"
+        fh.write(f"{r['field']:<16}{r['config']:>4}{r['cell']:>12.3f}{r['imsize']:>7}"
                  f"{r['psf_peak']:>10.3f}{r['resid_rms']:>12.4g}  {r['status']}\n")
 print(f"Wrote {summary}")
