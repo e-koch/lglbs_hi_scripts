@@ -16,11 +16,16 @@ import os
 import shutil
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from pipeline_common import script_args
-
 from casatasks import uvcontsub
 from casatools import msmetadata, table
+
+
+
+def script_args(script_name):
+    """Arguments following `script_name` on a `casa -c script args` command line."""
+    idx = max(i for i, a in enumerate(sys.argv) if a.endswith(script_name))
+    return sys.argv[idx + 1:]
+
 
 fitorder = 1
 n_edge = 2   # channels used at each end of every SPW
