@@ -16,3 +16,8 @@ Job 2: tar, verify, replace tar in project space, remove local MS.
 
 `summary_amp_weight_vs_uvdist.py` is kept here as a standalone diagnostic.
 Set `STAGED_DIR` to point both jobs at a test copy of the archive.
+
+`summarize_stage1_products.py [DATA_DIR] [-o OUTDIR]` builds a per-run markdown summary (flagging
+before/after, hub-antenna flag commands, test-imaging table, attention flags) and a PNG gallery of
+the PSF/residual test images for every `*_products` dir, plus `overview.md`/`overview.csv`. It reads
+CASA images with casatools if available, otherwise casa-formats-io.
