@@ -1,6 +1,7 @@
 """Continuum-subtract a staged MS in place with a 1st-order fit.
 
-The fit uses the first 2 and last 2 channels of every SPW. The MS keeps its
+The fit uses the first 5% and last 5% of the channels of every SPW (rounded to
+the nearest channel, at least 1 at each end). The MS keeps its
 name; the continuum-subtracted result replaces the original.
 
 Run with:
@@ -26,7 +27,7 @@ def script_args(script_name):
 
 
 fitorder = 1
-n_edge = 2   # channels used at each end of every SPW
+edge_frac = 0.05   # fraction of each SPW's channels used at each end
 
 vis = script_args("run_uvcontsub.py")[0].rstrip("/")
 
@@ -46,6 +47,7 @@ msmd.close()
 
 fit_parts = []
 for s, n in nchan.items():
+    n_edge = max(1, int(edge_frac * n + 0.5))
     if n <= 2 * n_edge:
         raise RuntimeError(f"SPW {s} has only {n} channels; cannot use {n_edge}+{n_edge} edge channels")
     fit_parts.append(f"{s}:0~{n_edge - 1};{n - n_edge}~{n - 1}")

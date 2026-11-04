@@ -9,7 +9,7 @@ outputs can be checked before the archive is overwritten.
 
 Job 1, per staged MS tar: extract to the work dir -> `find_weight_outliers.py`
 (flag hub antennas, `*_flag_summary.txt` before/after) -> `run_uvcontsub.py`
-(order 1, first/last 2 channels per SPW; skipped for `nocontsub`) ->
+(order 1, first/last 5% of channels per SPW; skipped for `nocontsub`) ->
 `run_test_imaging.py` (natural-weighted single-channel PSF + residual per
 field per VLA config; configs by absolute p95 baseline).
 Job 2: tar, verify, replace tar in project space, remove local MS.
