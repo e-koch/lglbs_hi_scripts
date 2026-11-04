@@ -1,8 +1,11 @@
 """Single-channel natural-weighted test images per field per VLA configuration.
 
 For every field and every VLA configuration present in the MS, run tclean
-(niter=0) on the middle channel of the first SPW, selecting only that
-configuration's observation IDs. Only the PSF and residual are kept.
+(niter=0) on channel 0 of ALL spectral windows in the MS (they are assumed to be the
+same band on the same channel grid, e.g. the same line observed in different
+correlator setups/epochs; checked below), combined into one output channel,
+selecting only that configuration's observation IDs. Only the PSF and residual
+are kept.
 
 Configurations are identified per OBSERVATION_ID from the 95th-percentile uv
 distance compared with absolute nominal A/B/C/D baselines
@@ -133,21 +136,36 @@ datacolumn = "corrected" if "CORRECTED_DATA" in tbl.colnames() else "data"
 tbl.close()
 
 tbl.open(vis + "/DATA_DESCRIPTION")
-spw = int(sorted(set(tbl.getcol("SPECTRAL_WINDOW_ID")))[0])
+spws = sorted(int(s) for s in set(tbl.getcol("SPECTRAL_WINDOW_ID")))
 tbl.close()
 
 msmd = msmetadata()
 msmd.open(vis)
 fields = list(msmd.fieldnames())
-nchan = int(msmd.nchan(spw))
 # chan = nchan // 2
 chan = 0
-freq_hz = float(msmd.chanfreqs(spw)[chan])
+nchans = {s: int(msmd.nchan(s)) for s in spws}
+nchan = min(nchans.values())
+chan_freqs = {s: float(msmd.chanfreqs(s)[chan]) for s in spws}
+chan_widths = {s: abs(float(msmd.chanwidths(s)[chan])) for s in spws}
+freq_hz = chan_freqs[spws[0]]
 # Only image fields that have scans (skip unobserved/empty names)
 fields_with_data = [f for f in dict.fromkeys(fields) if len(msmd.scansforfield(f)) > 0]
 msmd.close()
 wavelength = C_LIGHT / freq_hz
-print(f"SPW {spw}: channel {chan} of {nchan}, {freq_hz / 1e6:.3f} MHz, datacolumn={datacolumn}")
+spw_label = ",".join(str(s) for s in spws)
+spw_sel = ",".join(f"{s}:{chan}" for s in spws)
+print(f"SPW(s) {spw_label}: channel {chan} of {nchan}, {freq_hz / 1e6:.3f} MHz, datacolumn={datacolumn}")
+
+# Combining the SPWs into one channel assumes they share a channel grid. Warn loudly if not.
+spw_warning = None
+if len(spws) > 1:
+    max_df = max(chan_freqs.values()) - min(chan_freqs.values())
+    if len(set(nchans.values())) > 1 or max_df > min(chan_widths.values()) or \
+            (max(chan_widths.values()) - min(chan_widths.values())) > 1e-3 * min(chan_widths.values()):
+        spw_warning = (f"WARNING: SPWs {spw_label} do not share a channel grid "
+                       f"(nchan={nchans}, ch{chan} spread {max_df:.0f} Hz, widths={chan_widths})")
+        print(spw_warning)
 
 rows = []
 for config, obsids in sorted(groups.items()):
@@ -163,7 +181,7 @@ for config, obsids in sorted(groups.items()):
             for ext in (".psf", ".residual"):
                 shutil.rmtree(prefix + ext, ignore_errors=True)
             tclean(vis=vis, imagename=prefix, field=field, observation=obs_sel,
-                   spw=f"{spw}:{chan}", datacolumn=datacolumn, specmode="cube",
+                   spw=spw_sel, datacolumn=datacolumn, specmode="cube",
                    nchan=1, imsize=[imsize, imsize], cell=f"{cell_arcsec:.4f}arcsec",
                    gridder="standard", weighting="natural", niter=0,
                    deconvolver="hogbom", pblimit=0.7, restoration=False,
@@ -190,8 +208,11 @@ for config, obsids in sorted(groups.items()):
 summary = os.path.join(outdir, "test_imaging_summary.txt")
 with open(summary, "w") as fh:
     fh.write(f"Test imaging for {vis}\n")
-    fh.write(f"SPW {spw} channel {chan}/{nchan} ({freq_hz / 1e6:.3f} MHz), natural weighting, "
-             f"datacolumn={datacolumn}\n\n")
+    fh.write(f"SPW {spw_label} channel {chan}/{nchan} ({freq_hz / 1e6:.3f} MHz), natural weighting, "
+             f"datacolumn={datacolumn}\n")
+    if spw_warning:
+        fh.write(spw_warning + "\n")
+    fh.write("\n")
     fh.write("Config  obsids  p95_baseline_m\n")
     for c, o in sorted(groups.items()):
         fh.write(f"{c:>6}  {','.join(map(str, o)):>6}  {group_p95[c]:.0f}\n")

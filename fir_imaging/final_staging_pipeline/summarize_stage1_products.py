@@ -181,7 +181,7 @@ def parse_imaging_summary(path):
     """Parse test_imaging_summary.txt -> dict (None if the file is missing)."""
     if not os.path.exists(path):
         return None
-    out = dict(ms=None, spw=None, chan=None, nchan=None, freq_mhz=None, datacolumn=None,
+    out = dict(ms=None, spw=None, spws=[], chan=None, nchan=None, freq_mhz=None, datacolumn=None,
                configs=OrderedDict(), rows=[])
     with open(path) as fh:
         lines = fh.read().splitlines()
@@ -189,9 +189,12 @@ def parse_imaging_summary(path):
         m = re.match(r"Test imaging for (.*)", line)
         if m:
             out["ms"] = m.group(1).strip()
-        m = re.match(r"SPW (\d+) channel (\d+)/(\d+) \(([\d.]+) MHz\).*datacolumn=(\w+)", line)
+        # "SPW 0 channel ..." (first-SPW-only imaging) or "SPW 0,1 channel ..." (all SPWs)
+        m = re.match(r"SPWs? ([\d,]+) channel (\d+)/(\d+) \(([\d.]+) MHz\).*datacolumn=(\w+)", line)
         if m:
-            out["spw"], out["chan"], out["nchan"] = (int(m.group(i)) for i in (1, 2, 3))
+            out["spw"] = m.group(1)                       # label, e.g. "0" or "0,1"
+            out["spws"] = [int(x) for x in m.group(1).split(",")]
+            out["chan"], out["nchan"] = int(m.group(2)), int(m.group(3))
             out["freq_mhz"], out["datacolumn"] = float(m.group(4)), m.group(5)
         m = re.match(r"^\s*([ABCD])\s+(\S+)\s+(\d+)\s*$", line)
         if m:
@@ -259,14 +262,15 @@ def explain_failure(row, imaging, listobs):
     if listobs is None:
         return "unexplained", "no listobs to check against"
     cfg_obsids = imaging["configs"].get(row["config"], {}).get("obsids", [])
+    spws = imaging["spws"]
     spw = imaging["spw"]
     have = defaultdict(int)       # spw -> rows for this field in this config's obsids
     for (oid, fname), by_spw in listobs["rows"].items():
         if fname == row["field"] and oid in cfg_obsids:
             for s, n in by_spw.items():
                 have[s] += n
-    if have.get(spw, 0) > 0:
-        return "unexplained", f"listobs shows data in SPW {spw} for this field/config"
+    if any(have.get(sp, 0) > 0 for sp in spws):
+        return "unexplained", f"listobs shows data in imaged SPW {spw} for this field/config"
     if not have:
         return "expected", f"field not observed in {row['config']}-config obsids"
     others = ", ".join(str(s) for s in sorted(have))
@@ -600,7 +604,7 @@ def overview_rows(runs):
             n_images=len(im["rows"]) if im else 0, n_ok=r["n_ok"],
             n_fail_nodata=r["n_fail_expected"], n_fail_unexplained=r["n_fail_unexplained"],
         )
-        for cfg in "CD":
+        for cfg in "ABCD":
             row[f"median_rms_{cfg}_mjy"] = (f"{r['median_rms'][cfg] * 1e3:.3f}" if cfg in r["median_rms"] else "")
         row["n_attention"] = len(r["attention"])
         rows.append(row)
@@ -625,27 +629,32 @@ def write_overview(runs, outdir, data_dir):
     bad = [r for r in runs if r["imaging"] and r["imaging"]["rows"]
            and r["n_ok"] < 0.5 * len(r["imaging"]["rows"])]
     if bad:
-        spws = sorted({r["imaging"]["spw"] for r in bad})
+        causes = defaultdict(int)
+        for r in bad:
+            for row in r["imaging"]["rows"]:
+                if not row["ok"]:
+                    causes[row["note"]] += 1
         L += ["## Main finding", "",
               f"**{len(bad)} runs produced test images for fewer than half of the field/config combinations** "
-              f"({', '.join(sorted({r['line'] for r in bad}))}). In every one the test image is made from "
-              f"SPW {', '.join(map(str, spws))}, which contains only the single-pointing data of the central "
-              "field; the mosaic fields are in another SPW, so `tclean` found 0 rows. "
-              "`run_test_imaging.py` picks the first SPW in DATA_DESCRIPTION, so mosaic fields in "
-              "multi-SPW runs are never test-imaged. The affected runs:", ""]
+              f"({', '.join(sorted({r['line'] for r in bad}))}). Imaged SPW(s): "
+              f"{', '.join(sorted({r['imaging']['spw'] for r in bad}))}. Most common causes of the failed "
+              "images (see each run summary for the per-image reason):", ""]
+        L += [f"- {n} images: {c}" for c, n in sorted(causes.items(), key=lambda kv: -kv[1])[:3]]
+        L += ["", "The affected runs:", ""]
         L += [f"- `{r['label']}`: {r['n_ok']}/{len(r['imaging']['rows'])} images ok" for r in bad]
         L.append("")
 
     L += ["## Runs", ""]
     hdr = ["run", "flagged before %", "after %", "added %", "flag cmds", "images ok/total",
-           "failed (no data/unexpl.)", "median rms C / D (mJy/bm)", "attention"]
+           "failed (no data/unexpl.)", "median rms by config (mJy/bm)", "attention"]
     trows = []
     for r, o in zip(runs, rows):
         trows.append([f"[{r['label']}]({r['label']}_summary.md)",
                       f"{o['flagged_before_pct']}", f"{o['flagged_after_pct']}", f"{o['flag_change_pct']}",
                       o["n_flag_cmds"], f"{o['n_ok']}/{o['n_images']}",
                       f"{o['n_fail_nodata']}/{o['n_fail_unexplained']}",
-                      f"{o['median_rms_C_mjy'] or '-'} / {o['median_rms_D_mjy'] or '-'}", o["n_attention"]])
+                      " ".join(f"{c}:{o[f'median_rms_{c}_mjy']}" for c in "ABCD" if o[f"median_rms_{c}_mjy"]) or "-",
+                      o["n_attention"]])
     L.append(md_table(hdr, trows, ["l"] + ["r"] * 8))
     L.append("")
 
