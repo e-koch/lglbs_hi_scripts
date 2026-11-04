@@ -140,7 +140,8 @@ msmd = msmetadata()
 msmd.open(vis)
 fields = list(msmd.fieldnames())
 nchan = int(msmd.nchan(spw))
-chan = nchan // 2
+# chan = nchan // 2
+chan = 0
 freq_hz = float(msmd.chanfreqs(spw)[chan])
 # Only image fields that have scans (skip unobserved/empty names)
 fields_with_data = [f for f in dict.fromkeys(fields) if len(msmd.scansforfield(f)) > 0]
