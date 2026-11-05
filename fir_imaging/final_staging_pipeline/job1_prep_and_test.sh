@@ -9,7 +9,8 @@
 #SBATCH --mail-type=END,FAIL
 
 # Job 1 of the final staging pipeline. For one target, for each staged MS tar:
-#   extract -> find_weight_outliers (+apply flags, flag summary)
+#   extract -> combine_spws (only if >1 SPW in use, e.g. OH lines with B0D0+A0C0)
+#           -> find_weight_outliers (+apply flags, flag summary)
 #           -> uvcontsub (skipped for *nocontsub*) -> single-channel test imaging
 # Everything lands in /home/ekoch/scratch/VLAXL_imaging/<target>_<jobid>/ so the
 # outputs can be inspected before job2_archive_and_cleanup.sh is submitted.
@@ -27,7 +28,7 @@ fi
 STAGED_DIR=${STAGED_DIR:-/home/ekoch/projects/rrg-eros-ab/ekoch/VLAXL/staged_measurement_sets}
 WORKDIR=/home/ekoch/scratch/VLAXL_imaging/${TARGET}_${SLURM_JOB_ID}
 PIPE=/home/ekoch/lglbs_hi_scripts/fir_imaging/final_staging_pipeline
-CASA_EXECUTABLE="/home/ekoch/casa-6.6.1-17-pipeline-2024.1.0.8/bin/casa"
+CASA_EXECUTABLE="/home/ekoch/casa-6.7.6-14-py3.12.el9/bin/casa"
 
 module load StdEnv
 module load qt
@@ -78,6 +79,10 @@ import sys; sys.path.insert(0, '$PIPE')
 from pipeline_common import extract_ms_tar
 print(extract_ms_tar('$TAR', '$WORKDIR'))"
     mkdir -p $PRODUCTS
+
+    # Merge near-identical SPWs (sub-channel offsets) into one; no-op for 1 SPW.
+    # Uses mstransform fftshift interpolation (fixed in CASA >= 6.7.5).
+    run_casa $PIPE/combine_spws.py $WORKDIR/$MS_NAME
 
     run_casa $PIPE/find_weight_outliers.py $WORKDIR/$MS_NAME $PRODUCTS
 

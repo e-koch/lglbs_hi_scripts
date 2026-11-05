@@ -7,7 +7,10 @@ outputs can be checked before the archive is overwritten.
     # inspect /home/ekoch/scratch/VLAXL_imaging/<target>_<jobid>/*_products/
     sbatch job2_archive_and_cleanup.sh <target> [workdir]   # PURGE=1 to delete workdir
 
-Job 1, per staged MS tar: extract to the work dir -> `find_weight_outliers.py`
+Job 1 runs CASA 6.7.6 (`casa-6.7.6-14-py3.12.el9`). Per staged MS tar: extract to the work dir ->
+`combine_spws.py` (if >1 SPW is in use, e.g. OH lines with a few B0D0 scans ~0.25 chan from the A0C0 SPW,
+or M31 hilores; mstransform regrid onto the busiest SPW's grid with `fftshift` interpolation, in place;
+stops without changes if SPWs differ in nchan/width or are offset by >=1 chan) -> `find_weight_outliers.py`
 (flag hub antennas, `*_flag_summary.txt` before/after) -> `run_uvcontsub.py`
 (order 1, first/last 5% of channels per SPW; skipped for `nocontsub`) ->
 `run_test_imaging.py` (natural-weighted single-channel PSF + residual per
