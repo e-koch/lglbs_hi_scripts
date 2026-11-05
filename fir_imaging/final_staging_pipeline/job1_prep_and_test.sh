@@ -49,20 +49,29 @@ if [ ${#TARS[@]} -eq 0 ]; then
 fi
 echo "Found ${#TARS[@]} staged MS tar(s)"
 
-# Build a per-job CASA rcdir whose memory settings match the SLURM allocation.
-# system.resources.memory is in MB; SLURM_MEM_PER_NODE is already in MB.
-make_casa_rcdir () {
-    local mem_mb=${SLURM_MEM_PER_NODE:-$(( ${SLURM_MEM_PER_CPU:-4000} * ${SLURM_CPUS_PER_TASK:-1} ))}
-    CASA_RCDIR=${SLURM_TMPDIR:-/tmp}/casa_rc_${SLURM_JOB_ID}
-    mkdir -p $CASA_RCDIR
-    [ -f ~/.casa/config.py ] && cp ~/.casa/config.py $CASA_RCDIR/
-    printf 'system.resources.memory: %s\nsystem.resources.memfrac: 0.99\n' $mem_mb > $CASA_RCDIR/rc
-    echo "CASA rcdir $CASA_RCDIR: memory ${mem_mb} MB, memfrac 0.99"
+# CASA >= 6.7 no longer has --rcdir or reads an rc file from it. Memory limits are
+# set from Python instead, via a per-job startup file passed with --startupfile.
+# casalog.setMemoryTotal() takes MB (checked: setMemoryTotal(1000) -> getMemoryTotal()
+# = 1024000 kB); casalog.setMemoryFraction() takes an INTEGER percent.
+# SLURM_MEM_PER_NODE is already in MB. ~/.casa/config.py is read automatically.
+make_casa_startup () {
+    local alloc_mb=${SLURM_MEM_PER_NODE:-$(( ${SLURM_MEM_PER_CPU:-4000} * ${SLURM_CPUS_PER_TASK:-1} ))}
+    local mem_mb=$(( alloc_mb * 9 / 10 ))      # ~10% headroom for OS / xvfb / non-imaging use
+    CASA_CACHEDIR=${SLURM_TMPDIR:-/tmp}/casa_cache_${SLURM_JOB_ID}
+    mkdir -p $CASA_CACHEDIR
+    CASA_STARTUP=$CASA_CACHEDIR/startup.py
+    cat > $CASA_STARTUP <<EOF
+from casatasks import casalog
+casalog.setMemoryTotal(${mem_mb})
+casalog.setMemoryFraction(99)
+EOF
+    echo "CASA cachedir $CASA_CACHEDIR: memory ${mem_mb} MB of ${alloc_mb} MB allocated, memfrac 99%"
 }
-make_casa_rcdir
+make_casa_startup
 
 run_casa () {
-    xvfb-run -a $CASA_EXECUTABLE --rcdir $CASA_RCDIR --nologger --nogui --log2term -c "$@"
+    xvfb-run -a $CASA_EXECUTABLE --cachedir $CASA_CACHEDIR --startupfile $CASA_STARTUP \
+        --nologger --nogui --log2term -c "$@"
 }
 
 for TAR in "${TARS[@]}"; do
