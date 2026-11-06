@@ -304,6 +304,12 @@ def analyse_run(products_dir):
     cmd_files = sorted(glob.glob(os.path.join(products_dir, "*_flagcmds.txt")))
     # <name>_flagcmds.txt is the union of the per-SPW <name>_spwN_flagcmds.txt files
     union = [f for f in cmd_files if "_spw" not in os.path.basename(f)]
+    run["stale_flagcmd_files"] = []
+    if run["flag"] is not None and cmd_files and not run["flag"]["cmd_files"]:
+        # the flag summary applied no command files, so any *_flagcmds.txt here is left over
+        # from an earlier run of the same products dir
+        run["stale_flagcmd_files"] = [os.path.basename(f) for f in cmd_files]
+        cmd_files, union = [], []
     run["flagcmd_files"] = [os.path.basename(f) for f in cmd_files]
     run["flagcmds"] = parse_flagcmds(union or cmd_files)
     img_dir = os.path.join(products_dir, "test_images")
@@ -312,6 +318,9 @@ def analyse_run(products_dir):
     run["listobs"] = parse_listobs(os.path.join(products_dir, f"{label}.listobs.txt"))
 
     attention = []
+    if run["stale_flagcmd_files"]:
+        attention.append("Stale flag-command files ignored (not applied per the flag summary; left over from an "
+                         "earlier run?): " + ", ".join(run["stale_flagcmd_files"]))
     flag = run["flag"]
     if flag is None:
         attention.append("MISSING flag summary")
@@ -337,7 +346,7 @@ def analyse_run(products_dir):
                                  + ", ".join(f"{k} ({v:.2f}%)" for k, v in sorted(heavy, key=lambda x: -x[1])))
 
     imaging = run["imaging"]
-    run["n_ok"] = run["n_fail_expected"] = run["n_fail_unexplained"] = 0
+    run["n_ok"] = run["n_fail_expected"] = run["n_fail_unexplained"] = run["n_empty"] = 0
     run["median_rms"] = {}
     if imaging is None:
         attention.append("MISSING test_imaging_summary.txt")
@@ -370,14 +379,24 @@ def analyse_run(products_dir):
         rms_out, psf_bad, peaky = [], [], []
         for cfg in imaging["configs"]:
             oks = [r for r in imaging["rows"] if r["config"] == cfg and r["ok"]
-                   and np.isfinite(r.get("rms", np.nan))]
+                   and np.isfinite(r.get("rms", np.nan)) and r.get("psf_max", 1) != 0]
             if oks:
                 med = float(np.median([r["rms"] for r in oks]))
                 run["median_rms"][cfg] = med
                 rms_out += [f"{r['field']} {cfg} ({r['rms'] * 1e3:.2f} mJy/beam, {r['rms'] / med:.2f}x)"
                             for r in oks if r["rms"] > RMS_OUTLIER_FACTOR * med]
+        empty = [r for r in imaging["rows"] if r["ok"] and "psf_max" in r and r["psf_max"] == 0]
+        for r in empty:
+            r["note"] = "empty image (PSF peak 0): no unflagged data in the imaged channel"
+            r["empty"] = True
+        run["n_empty"] = len(empty)
+        if empty:
+            attention.append(f"{len(empty)} of {run['n_ok']} 'ok' test images are EMPTY (PSF peak 0, residual 0: "
+                             "tclean ran but every visibility in the imaged channel is flagged): "
+                             + ", ".join(f"{r['field']} {r['config']}" for r in empty[:8])
+                             + (" ..." if len(empty) > 8 else ""))
         for r in imaging["rows"]:
-            if r["ok"] and "psf_max" in r:
+            if r["ok"] and "psf_max" in r and not r.get("empty"):
                 if abs(r["psf_max"] - 1.0) > PSF_PEAK_TOL:
                     psf_bad.append(f"{r['field']} {r['config']} ({r['psf_max']:.4f})")
                 if r["resid_peak_snr"] > RESID_PEAK_SNR_MAX:
@@ -561,6 +580,8 @@ def write_run_report(run, path, gallery_name):
     else:
         L.append(f"SPW {imaging['spw']}, channel {imaging['chan']} of {imaging['nchan']} "
                  f"({imaging['freq_mhz']:.3f} MHz), natural weighting, datacolumn={imaging['datacolumn']}.")
+        if run["n_empty"]:
+            L.append(f"**{run['n_empty']} of the 'ok' images are empty (PSF peak 0): all data in the imaged channel flagged.**")
         L.append(f"Images: **{run['n_ok']} ok**, {run['n_fail_expected']} failed with no data "
                  f"in the imaged SPW/config, **{run['n_fail_unexplained']} failed unexplained**.")
         L.append("")
@@ -601,7 +622,7 @@ def overview_rows(runs):
             flagged_before_pct=f["before"] if f else "", flagged_after_pct=f["after"] if f else "",
             flag_change_pct=f["change"] if f else "", n_flag_cmds=r["flagcmds"]["n_cmds"],
             imaged_spw=im["spw"] if im else "", imaged_freq_mhz=im["freq_mhz"] if im else "",
-            n_images=len(im["rows"]) if im else 0, n_ok=r["n_ok"],
+            n_images=len(im["rows"]) if im else 0, n_ok=r["n_ok"], n_empty=r["n_empty"],
             n_fail_nodata=r["n_fail_expected"], n_fail_unexplained=r["n_fail_unexplained"],
         )
         for cfg in "ABCD":
@@ -620,20 +641,23 @@ def write_overview(runs, outdir, data_dir):
 
     L = ["# Stage 1 products overview", "", f"Data dir: `{data_dir}`   Runs: **{len(runs)}**", ""]
     tot_img = sum(r["n_ok"] + r["n_fail_expected"] + r["n_fail_unexplained"] for r in runs)
-    L.append(f"Test images: {sum(r['n_ok'] for r in runs)} ok / "
+    L.append(f"Test images: {sum(r['n_ok'] for r in runs)} made by tclean "
+             f"(of which {sum(r['n_empty'] for r in runs)} are empty, i.e. all flagged) / "
              f"{sum(r['n_fail_expected'] for r in runs)} failed with no data in the imaged SPW or config / "
              f"{sum(r['n_fail_unexplained'] for r in runs)} failed unexplained (of {tot_img}).")
     L.append("")
 
     # runs where imaging is mostly empty
     bad = [r for r in runs if r["imaging"] and r["imaging"]["rows"]
-           and r["n_ok"] < 0.5 * len(r["imaging"]["rows"])]
+           and r["n_ok"] - r["n_empty"] < 0.5 * len(r["imaging"]["rows"])]
     if bad:
         causes = defaultdict(int)
         for r in bad:
             for row in r["imaging"]["rows"]:
                 if not row["ok"]:
                     causes[row["note"]] += 1
+                elif row.get("empty"):
+                    causes["tclean ran but the image is empty (all data in the imaged channel flagged)"] += 1
         L += ["## Main finding", "",
               f"**{len(bad)} runs produced test images for fewer than half of the field/config combinations** "
               f"({', '.join(sorted({r['line'] for r in bad}))}). Imaged SPW(s): "
@@ -641,7 +665,7 @@ def write_overview(runs, outdir, data_dir):
               "images (see each run summary for the per-image reason):", ""]
         L += [f"- {n} images: {c}" for c, n in sorted(causes.items(), key=lambda kv: -kv[1])[:3]]
         L += ["", "The affected runs:", ""]
-        L += [f"- `{r['label']}`: {r['n_ok']}/{len(r['imaging']['rows'])} images ok" for r in bad]
+        L += [f"- `{r['label']}`: {r['n_ok'] - r['n_empty']}/{len(r['imaging']['rows'])} images usable" for r in bad]
         L.append("")
 
     L += ["## Runs", ""]
@@ -651,7 +675,7 @@ def write_overview(runs, outdir, data_dir):
     for r, o in zip(runs, rows):
         trows.append([f"[{r['label']}]({r['label']}_summary.md)",
                       f"{o['flagged_before_pct']}", f"{o['flagged_after_pct']}", f"{o['flag_change_pct']}",
-                      o["n_flag_cmds"], f"{o['n_ok']}/{o['n_images']}",
+                      o["n_flag_cmds"], f"{o['n_ok'] - o['n_empty']}/{o['n_images']}" + (f" ({o['n_empty']} empty)" if o['n_empty'] else ""),
                       f"{o['n_fail_nodata']}/{o['n_fail_unexplained']}",
                       " ".join(f"{c}:{o[f'median_rms_{c}_mjy']}" for c in "ABCD" if o[f"median_rms_{c}_mjy"]) or "-",
                       o["n_attention"]])

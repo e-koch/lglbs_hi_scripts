@@ -12,6 +12,11 @@ interpolation is 'fftshift' (fixed in CASA >= 6.7.5; run with 6.7.6).
 Run with:
     casa --nologger --nogui --log2term -c combine_spws.py <ms>
 
+After the merge, the outer edge channels are checked: regridding can leave the first
+and/or last channel(s) fully flagged (no valid data in any row). If so, they are
+removed with split so the staged MS has no dead edge channels (test imaging uses
+channel 0, which must hold data).
+
 MSs with a single SPW in use are left unchanged. If the SPWs differ in nchan,
 differ in channel width by >1%, or are offset by >= 1 channel, the script
 stops without changing the MS (these are not the small-offset case).
@@ -22,11 +27,30 @@ import shutil
 import sys
 
 import numpy as np
-from casatasks import mstransform
+from casatasks import mstransform, split
 from casatools import msmetadata, table
 
 max_width_frac = 0.01   # allowed fractional channel-width difference
 max_shift_chan = 1.0    # allowed offset of channel 0 from reference, in channels
+flag_chunk_rows = 200000  # rows read at a time when counting flags per channel
+
+
+def flagged_rows_per_channel(ms):
+    """Return (rows in which each channel is flagged, total rows) for `ms`.
+
+    A channel counts as flagged in a row if all correlations are flagged.
+    """
+    t = table()
+    t.open(ms)
+    nrow = t.nrows()
+    counts = None
+    for start in range(0, nrow, flag_chunk_rows):
+        n = min(flag_chunk_rows, nrow - start)
+        flag = t.getcol("FLAG", startrow=start, nrow=n)    # (ncorr, nchan, n)
+        c = np.all(flag, axis=0).sum(axis=1)               # (nchan,)
+        counts = c if counts is None else counts + c
+    t.close()
+    return counts, nrow
 
 
 def script_args(script_name):
@@ -114,6 +138,46 @@ if nchan_new != nchan_ref:
 for col in ("DATA", "WEIGHT_SPECTRUM"):
     if col in colnames and col not in colnames_new:
         raise RuntimeError(f"Column {col} lost in combine; keeping original")
+
+# --- Drop fully flagged outer edge channels ---
+counts, nrow_chk = flagged_rows_per_channel(result)
+dead = counts == nrow_chk                     # flagged in every row
+lo = 0
+while lo < nchan_new and dead[lo]:
+    lo += 1
+hi = nchan_new - 1
+while hi > lo and dead[hi]:
+    hi -= 1
+edge = np.r_[0:min(lo + 3, nchan_new), max(hi - 2, 0):nchan_new]
+print("Flagged fraction of the outer channels after combine: "
+      + ", ".join(f"ch{c}: {counts[c] / nrow_chk:.4f}" for c in sorted(set(edge.tolist()))))
+if lo >= nchan_new:
+    raise RuntimeError("All channels are fully flagged after combine; keeping original")
+if lo > 0 or hi < nchan_new - 1:
+    trimmed = result[:-3] + "_trim.ms" if result.endswith(".ms") else result + "_trim"
+    if os.path.exists(trimmed):
+        shutil.rmtree(trimmed)
+    print(f"Fully flagged edge channels: removing {lo} leading and {nchan_new - 1 - hi} trailing "
+          f"channel(s); keeping channels {lo}~{hi} ({hi - lo + 1} of {nchan_new})")
+    split(vis=result, outputvis=trimmed, spw=f"0:{lo}~{hi}", datacolumn="all", keepflags=True)
+    tbl.open(trimmed)
+    nrow_trim = tbl.nrows()
+    colnames_trim = tbl.colnames()
+    tbl.close()
+    msmd.open(trimmed)
+    nspw_trim = msmd.nspw()
+    nchan_trim = int(msmd.nchan(0))
+    msmd.close()
+    if nrow_trim != nrow_old or nspw_trim != 1 or nchan_trim != hi - lo + 1:
+        raise RuntimeError(f"Trim check failed (rows {nrow_trim} vs {nrow_old}, SPWs {nspw_trim}, "
+                           f"nchan {nchan_trim} vs {hi - lo + 1}); keeping original")
+    for col in ("DATA", "WEIGHT_SPECTRUM", "CORRECTED_DATA"):
+        if col in colnames_new and col not in colnames_trim:
+            raise RuntimeError(f"Column {col} lost in trim; keeping original")
+    shutil.rmtree(result)
+    result = trimmed
+else:
+    print("No fully flagged edge channels; keeping all channels")
 
 shutil.rmtree(vis)
 shutil.move(result, vis)
