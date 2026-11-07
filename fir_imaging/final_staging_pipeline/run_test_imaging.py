@@ -142,6 +142,8 @@ tbl.close()
 msmd = msmetadata()
 msmd.open(vis)
 fields = list(msmd.fieldnames())
+# The channel is chosen with tclean's start=<channel>, width=1 (no spw selector): an spw='0:1'
+# selection could give blank PSFs (nothing gridded) for some MSs but not others.
 # Channel 1, not 0: after combine_spws regridding, channel 0 can be (nearly) fully flagged
 # for most fields (OH: ~98% of rows), which gave empty images for every mosaic pointing.
 chan = 1
@@ -155,7 +157,6 @@ fields_with_data = [f for f in dict.fromkeys(fields) if len(msmd.scansforfield(f
 msmd.close()
 wavelength = C_LIGHT / freq_hz
 spw_label = ",".join(str(s) for s in spws)
-spw_sel = ",".join(f"{s}:{chan}" for s in spws)
 print(f"SPW(s) {spw_label}: channel {chan} of {nchan}, {freq_hz / 1e6:.3f} MHz, datacolumn={datacolumn}")
 
 # Combining the SPWs into one channel assumes they share a channel grid. Warn loudly if not.
@@ -182,8 +183,8 @@ for config, obsids in sorted(groups.items()):
             for ext in (".psf", ".residual"):
                 shutil.rmtree(prefix + ext, ignore_errors=True)
             tclean(vis=vis, imagename=prefix, field=field, observation=obs_sel,
-                   spw=spw_sel, datacolumn=datacolumn, specmode="cube",
-                   nchan=1, imsize=[imsize, imsize], cell=f"{cell_arcsec:.4f}arcsec",
+                   datacolumn=datacolumn, specmode="cube",
+                   start=chan, width=1, nchan=1, imsize=[imsize, imsize], cell=f"{cell_arcsec:.4f}arcsec",
                    gridder="standard", weighting="natural", niter=0,
                    deconvolver="hogbom", pblimit=0.7, restoration=False,
                    interactive=False, parallel=False)
