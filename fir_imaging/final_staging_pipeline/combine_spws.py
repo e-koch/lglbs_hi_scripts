@@ -13,9 +13,11 @@ Run with:
     casa --nologger --nogui --log2term -c combine_spws.py <ms>
 
 After the merge, the outer edge channels are checked: regridding can leave the first
-and/or last channel(s) fully flagged (no valid data in any row). If so, they are
-removed with split so the staged MS has no dead edge channels (test imaging uses
-channel 0, which must hold data).
+and/or last channel(s) (almost) fully flagged. Rows from the SPW that is offset from the
+reference grid have no valid data in the edge channel, so it is not always flagged in
+*every* row (e.g. OH: ch0 is ~98% flagged, only the few scans on the reference SPW keep
+data). Edge channels flagged in >= edge_flag_frac of the rows are removed with split so
+the staged MS has no dead edge channels.
 
 MSs with a single SPW in use are left unchanged. If the SPWs differ in nchan,
 differ in channel width by >1%, or are offset by >= 1 channel, the script
@@ -33,6 +35,7 @@ from casatools import msmetadata, table
 max_width_frac = 0.01   # allowed fractional channel-width difference
 max_shift_chan = 1.0    # allowed offset of channel 0 from reference, in channels
 flag_chunk_rows = 200000  # rows read at a time when counting flags per channel
+edge_flag_frac = 0.9    # an edge channel flagged in >= this fraction of rows is dropped
 
 
 def flagged_rows_per_channel(ms):
@@ -139,9 +142,9 @@ for col in ("DATA", "WEIGHT_SPECTRUM"):
     if col in colnames and col not in colnames_new:
         raise RuntimeError(f"Column {col} lost in combine; keeping original")
 
-# --- Drop fully flagged outer edge channels ---
+# --- Drop (almost) fully flagged outer edge channels ---
 counts, nrow_chk = flagged_rows_per_channel(result)
-dead = counts == nrow_chk                     # flagged in every row
+dead = counts >= edge_flag_frac * nrow_chk    # flagged in (nearly) every row
 lo = 0
 while lo < nchan_new and dead[lo]:
     lo += 1
@@ -157,7 +160,7 @@ if lo > 0 or hi < nchan_new - 1:
     trimmed = result[:-3] + "_trim.ms" if result.endswith(".ms") else result + "_trim"
     if os.path.exists(trimmed):
         shutil.rmtree(trimmed)
-    print(f"Fully flagged edge channels: removing {lo} leading and {nchan_new - 1 - hi} trailing "
+    print(f"Edge channels flagged in >= {edge_flag_frac:.0%} of rows: removing {lo} leading and {nchan_new - 1 - hi} trailing "
           f"channel(s); keeping channels {lo}~{hi} ({hi - lo + 1} of {nchan_new})")
     split(vis=result, outputvis=trimmed, spw=f"0:{lo}~{hi}", datacolumn="all", keepflags=True)
     tbl.open(trimmed)
@@ -177,7 +180,7 @@ if lo > 0 or hi < nchan_new - 1:
     shutil.rmtree(result)
     result = trimmed
 else:
-    print("No fully flagged edge channels; keeping all channels")
+    print(f"No edge channels flagged in >= {edge_flag_frac:.0%} of rows; keeping all channels")
 
 shutil.rmtree(vis)
 shutil.move(result, vis)

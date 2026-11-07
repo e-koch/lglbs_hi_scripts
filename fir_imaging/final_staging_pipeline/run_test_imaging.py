@@ -1,7 +1,7 @@
 """Single-channel natural-weighted test images per field per VLA configuration.
 
 For every field and every VLA configuration present in the MS, run tclean
-(niter=0) on channel 0 of ALL spectral windows in the MS (they are assumed to be the
+(niter=0) on channel 1 of ALL spectral windows in the MS (they are assumed to be the
 same band on the same channel grid, e.g. the same line observed in different
 correlator setups/epochs; checked below), combined into one output channel,
 selecting only that configuration's observation IDs. Only the PSF and residual
@@ -142,8 +142,9 @@ tbl.close()
 msmd = msmetadata()
 msmd.open(vis)
 fields = list(msmd.fieldnames())
-# chan = nchan // 2
-chan = 0
+# Channel 1, not 0: after combine_spws regridding, channel 0 can be (nearly) fully flagged
+# for most fields (OH: ~98% of rows), which gave empty images for every mosaic pointing.
+chan = 1
 nchans = {s: int(msmd.nchan(s)) for s in spws}
 nchan = min(nchans.values())
 chan_freqs = {s: float(msmd.chanfreqs(s)[chan]) for s in spws}
