@@ -11,12 +11,17 @@
 # Job 1 of the final staging pipeline. For one target, for each staged MS tar:
 #   extract -> combine_spws (only if >1 SPW in use, e.g. OH lines with B0D0+A0C0)
 #           -> find_weight_outliers (+apply flags, flag summary)
+#           -> plot_flag_vs_channel (flagged % vs channel + frequency, PNG and CSV)
 #           -> uvcontsub (skipped for *nocontsub*) -> single-channel test imaging
+# then, once every MS is done, summarize_stage1_products (markdown summary + PNG gallery
+# per MS and an overview table, in <workdir>/stage1_qa_reports).
 # Everything lands in /home/ekoch/scratch/VLAXL_imaging/<target>_<jobid>/ so the
 # outputs can be inspected before job2_archive_and_cleanup.sh is submitted.
 #
 # Submit:  sbatch job1_prep_and_test.sh <target>
 #     e.g. sbatch ~/lglbs_hi_scripts/fir_imaging/final_staging_pipeline/job1_prep_and_test.sh ic1613ctr
+#   MAKE_SUMMARY=0 sbatch job1_prep_and_test.sh <target>   skips the summary report at the end.
+#   A failure in the flag plot or the summary report is only a warning; it does not stop the job.
 
 set -e
 
@@ -95,6 +100,10 @@ print(extract_ms_tar('$TAR', '$WORKDIR'))"
 
     run_casa $PIPE/find_weight_outliers.py $WORKDIR/$MS_NAME $PRODUCTS
 
+    # Flagged % vs channel (channel number + frequency axes) after the hub-antenna flags
+    run_casa $PIPE/plot_flag_vs_channel.py $WORKDIR/$MS_NAME $PRODUCTS \
+        || echo "WARNING: plot_flag_vs_channel failed for $MS_NAME; continuing"
+
     if [[ "$MS_NAME" == *nocontsub* ]]; then
         echo "nocontsub MS: skipping uvcontsub"
     else
@@ -103,6 +112,14 @@ print(extract_ms_tar('$TAR', '$WORKDIR'))"
 
     run_casa $PIPE/run_test_imaging.py $WORKDIR/$MS_NAME $PRODUCTS/test_images
 done
+
+# Summary report (markdown + PNG gallery per MS, overview.md/csv). On by default.
+if [ "${MAKE_SUMMARY:-1}" = "1" ]; then
+    echo "$(date): summary report"
+    run_casa $PIPE/summarize_stage1_products.py $WORKDIR \
+        || echo "WARNING: summary report failed; run summarize_stage1_products.py by hand"
+    echo "Summary report: $WORKDIR/stage1_qa_reports/overview.md"
+fi
 
 echo "Job 1 complete. Inspect $WORKDIR/*_products, then run:"
 echo "  sbatch $PIPE/job2_archive_and_cleanup.sh $TARGET $WORKDIR"

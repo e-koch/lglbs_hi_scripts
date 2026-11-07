@@ -6,6 +6,7 @@ Job 1 (job1_prep_and_test.sh) leaves one ``<name>_products/`` directory per stag
     <name>_flag_summary.txt            from find_weight_outliers.py (flagging before/after)
     <name>[_spwN]_flagcmds.txt         hub-antenna flag commands that were applied
     <name>.listobs.txt                 listobs of the MS
+    <name>_spw<N>_flag_vs_channel.{png,csv}   from plot_flag_vs_channel.py (optional)
     test_images/test_imaging_summary.txt
     test_images/test_<field>_<cfg>.{psf,residual}      CASA images from run_test_imaging.py
 
@@ -13,6 +14,8 @@ For every products directory this script writes (to ``--outdir``):
 
     <name>_summary.md      flagging + imaging summary and automatic attention flags
     <name>_gallery.png     PSF + residual for every field x VLA config
+    <name>_spw<N>_flag_vs_channel.png   copy of the flagged-% vs channel/frequency plot (also
+                                        embedded in <name>_summary.md)
 and, across all runs:
 
     overview.md            one table row per run plus the list of runs needing attention
@@ -35,6 +38,7 @@ import fnmatch
 import glob
 import os
 import re
+import shutil
 import sys
 import types
 from collections import OrderedDict, defaultdict
@@ -49,6 +53,7 @@ BIG_FLAG_CHANGE_PCT = 0.2   # flagging added by the hub-antenna step (%)
 FULLY_FLAGGED_SCAN_PCT = 99.0   # a scan this flagged after flagging is effectively lost (%)
 ANT_FLAG_FACTOR = 5.0       # antenna flagged > this x the median antenna ...
 ANT_FLAG_MIN_PCT = 1.0      # ... and above this absolute level (%)
+CHAN_FLAG_ATTN_PCT = 50.0   # a channel flagged at least this much (plot_flag_vs_channel.py) is reported
 RMS_OUTLIER_FACTOR = 1.3    # residual rms vs median of the same config
 PSF_PEAK_TOL = 1e-3         # |psf_peak - 1| tolerance
 RESID_PEAK_SNR_MAX = 8.0    # |residual| peak / rms; much more than this is not noise-like
@@ -208,6 +213,20 @@ def parse_imaging_summary(path):
     return out
 
 
+def parse_flag_vs_channel(products_dir, label):
+    """Per-SPW flagged % vs channel written by plot_flag_vs_channel.py (list, one dict per SPW)."""
+    out = []
+    for csv_path in sorted(glob.glob(os.path.join(products_dir, f"{label}_spw*_flag_vs_channel.csv"))):
+        try:
+            d = np.atleast_1d(np.genfromtxt(csv_path, delimiter=",", names=True))
+            png = csv_path[:-4] + ".png"
+            out.append(dict(spw=int(d["spw"][0]), chan=d["chan"].astype(int), freq=d["freq_MHz"],
+                            pct=d["flagged_pct"], png=png if os.path.exists(png) else None))
+        except Exception as exc:
+            print(f"  could not read {os.path.basename(csv_path)}: {exc}")
+    return out
+
+
 def parse_listobs(path):
     """Parse listobs -> {(obsid, field_name): set(spw)} plus field ids / names.
 
@@ -316,8 +335,16 @@ def analyse_run(products_dir):
     run["img_dir"] = img_dir
     run["imaging"] = parse_imaging_summary(os.path.join(img_dir, "test_imaging_summary.txt"))
     run["listobs"] = parse_listobs(os.path.join(products_dir, f"{label}.listobs.txt"))
+    run["chan_flags"] = parse_flag_vs_channel(products_dir, label)
 
     attention = []
+    for cf in run["chan_flags"]:
+        bad = np.where(cf["pct"] >= CHAN_FLAG_ATTN_PCT)[0]
+        if bad.size:
+            attention.append(f"SPW {cf['spw']}: {bad.size} channel(s) >= {CHAN_FLAG_ATTN_PCT:g}% flagged: "
+                             + ", ".join(f"ch{cf['chan'][i]} ({cf['pct'][i]:.1f}%, {cf['freq'][i]:.3f} MHz)"
+                                         for i in bad[:6])
+                             + (" ..." if bad.size > 6 else ""))
     if run["stale_flagcmd_files"]:
         attention.append("Stale flag-command files ignored (not applied per the flag summary; left over from an "
                          "earlier run?): " + ", ".join(run["stale_flagcmd_files"]))
@@ -573,6 +600,16 @@ def write_run_report(run, path, gallery_name):
                                 sorted(changed, key=lambda kv: -kv[1][2])[:25]) +
                       (" ..." if len(changed) > 25 else ""), ""]
 
+    # ---- flagged fraction vs channel (plots are copied next to the report)
+    for cf in run["chan_flags"]:
+        if cf["png"]:
+            name = os.path.basename(cf["png"])
+            shutil.copy(cf["png"], os.path.join(os.path.dirname(path), name))
+            L += [f"### Flagged fraction vs channel (SPW {cf['spw']})", "",
+                  f"Median {np.median(cf['pct']):.3f}%, max {cf['pct'].max():.2f}% "
+                  f"(ch{cf['chan'][int(cf['pct'].argmax())]}).", "",
+                  f"![{run['label']} flag vs channel]({name})", ""]
+
     # ---- imaging
     L += ["## Test imaging", ""]
     if imaging is None:
@@ -702,7 +739,10 @@ def main():
     ap.add_argument("-o", "--outdir", default=None)
     ap.add_argument("--match", default="*", help="glob on the run label, e.g. 'ic1613_*oh*'")
     ap.add_argument("--no-gallery", action="store_true")
-    args = ap.parse_args()
+    # Under `casa -c summarize_stage1_products.py <args>` sys.argv also holds CASA's own flags,
+    # so only parse what follows this script's name.
+    idx = max((i for i, a in enumerate(sys.argv) if a.endswith("summarize_stage1_products.py")), default=-1)
+    args = ap.parse_args(sys.argv[idx + 1:])
 
     outdir = args.outdir or os.path.join(args.data_dir, "stage1_qa_reports")
     os.makedirs(outdir, exist_ok=True)
