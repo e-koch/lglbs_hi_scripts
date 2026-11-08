@@ -113,7 +113,7 @@ ic10	       20A-346		all  D	  4	ic10/20A-346.sb39502198.eb39591025.59329.7344789
 ic10	       20A-346		all  D	  5	ic10/20A-346.sb39502535.eb39651742.59350.52247524305.speclines.ms.split
 ic10	       20A-346		all  D	  6	ic10/20A-346.sb39707823.eb39742380.59365.68438331019.speclines.ms.split
 
-ic10	       20A-346		all  C	  2	ic10/20A-346.sb39776368.eb39925848.59378.606368761575.speclines.ms.split
+ic10	       20A-346		all  C	  1	ic10/20A-346.sb39776368.eb39925848.59378.606368761575.speclines.ms.split
 ic10	       20A-346		all  C	  2	ic10/20A-346.sb39776368.eb39947892.59383.64103518518.speclines.ms.split
 ic10	       20A-346		all  C	  3	ic10/20A-346.sb39776368.eb39953750.59384.61018394676.speclines.ms.split
 ic10	       20A-346		all  C	  4	ic10/20A-346.sb39776368.eb39953810.59385.658740370374.speclines.ms.split
@@ -146,7 +146,7 @@ ic10ctr	       20A-346		IC10_1_CTR  D	  4	ic10/20A-346.sb39502198.eb39591025.593
 ic10ctr	       20A-346		IC10_1_CTR  D	  5	ic10/20A-346.sb39502535.eb39651742.59350.52247524305.speclines.ms.split
 ic10ctr	       20A-346		IC10_1_CTR  D	  6	ic10/20A-346.sb39707823.eb39742380.59365.68438331019.speclines.ms.split
 
-ic10ctr	       20A-346		IC10_1_CTR  C	  2	ic10/20A-346.sb39776368.eb39925848.59378.606368761575.speclines.ms.split
+ic10ctr	       20A-346		IC10_1_CTR  C	  1	ic10/20A-346.sb39776368.eb39925848.59378.606368761575.speclines.ms.split
 ic10ctr	       20A-346		IC10_1_CTR  C	  2	ic10/20A-346.sb39776368.eb39947892.59383.64103518518.speclines.ms.split
 ic10ctr	       20A-346		IC10_1_CTR  C	  3	ic10/20A-346.sb39776368.eb39953750.59384.61018394676.speclines.ms.split
 ic10ctr	       20A-346		IC10_1_CTR  C	  4	ic10/20A-346.sb39776368.eb39953810.59385.658740370374.speclines.ms.split
