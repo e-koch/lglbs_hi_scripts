@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --time=216:00:00
+#SBATCH --time=72:00:00
 #SBATCH --mem=64G
 #SBATCH --cpus-per-task=16
 #SBATCH --job-name=lglbs-staging-%J
@@ -18,14 +18,24 @@ export config_name=$2
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 
-module load StdEnv
-module load qt
+# module load StdEnv
+# module load qt
 
-source /home/ekoch/.bashrc
+# source /home/ekoch/.bashrc
 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/usr/
+# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/usr/
 
-export CASALD_LIBRARY_PATH=$LD_LIBRARY_PATH
+# export CASALD_LIBRARY_PATH=$LD_LIBRARY_PATH
+
+# python 3.13 venv
+module load StdEnv/2023
+
+module load python/3.13
+
+# ipython/numpy/scipy/mpl
+module load scipy-stack
+
+source $HOME/venv_phangs_pipeline/bin/activate
 
 
 # Ensure no time overlap in job start times
@@ -33,7 +43,7 @@ python3 -c "import time, random; time.sleep(random.randint(2, 120))"
 
 export data_path="/home/ekoch/scratch/VLAXL_imaging/MeasurementSets/"
 
-export casa_executable="/home/ekoch/casa-6.6.1-17-pipeline-2024.1.0.8/bin/casa"
+# export casa_executable="/home/ekoch/casa-6.6.1-17-pipeline-2024.1.0.8/bin/casa"
 export casa_script="/home/ekoch/lglbs_hi_scripts/fir_imaging/run_lglbs_line_staging.py"
 # export casa_job_config_file=/home/ekoch/lglbs_hi_scripts/fir_imaging/line_staging_imaging.${SLURM_ARRAY_TASK_ID}.jobconfig.txt
 
@@ -59,7 +69,6 @@ done
 
 cd $curr_dir
 
-
 # Step 2: Run CASA to do staging.
-xvfb-run -a $casa_executable --rcdir ~/.casa --nologger --nogui --log2term -c $casa_script $target_name $config_name
-
+# xvfb-run -a $casa_executable --rcdir ~/.casa --nologger --nogui --log2term -c $casa_script $target_name $config_name
+python $casa_script $target_name $config_name
