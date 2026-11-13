@@ -191,14 +191,12 @@ line_product    oh1612    {'fitorder':0,'combinespw':False,'lines_to_flag':['oh1
 line_product    oh1720    {'line_tag':'oh1720','channel_kms':1.5,'statwt_edge_kms':50.0}
 line_product    oh1720    {'fitorder':0,'combinespw':False,'lines_to_flag':['oh1720']}
 
-
-interf_config   D         {'array_tags':['D','DnC']}
-interf_config   C         {'array_tags':['C','BnC','CnB']}
-interf_config   C+D       {'array_tags':['D','DnC','C','CnB']}
-interf_config	B	  {'array_tags':['B','BnA']}
-interf_config   B+C+D     {'array_tags':['D','DnC','C','CnB','B','BnA']}
-interf_config	A	  {'array_tags':['A']}
-interf_config   A+B+C+D   {'array_tags':['D','DnC','C','CnB','B','BnA','A']}
+interf_config   D         {'requires':['D|DnC']}
+interf_config   C         {'requires':['C|BnC|CnB']}
+interf_config   C+D       {'requires':['D|DnC','C|BnC|CnB']}
+interf_config   B         {'requires':['B|BnA']}
+interf_config   B+C+D     {'requires':['D|DnC','C|BnC|CnB','B|BnA']}
+interf_config   A+B+C+D   {'requires':['D|DnC','C|BnC|CnB','B|BnA','A']}
 
 # note used 1000 earlier but will just go out to 300 moving forward
 
