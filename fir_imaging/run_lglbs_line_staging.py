@@ -74,7 +74,7 @@ this_uvh.set_interf_configs(only=all_configs)
 #                      'oh1612', 'oh1720', 'oh1665', 'oh1667']
 
 all_line_products = []
-# all_line_products += ['oh1612', 'oh1720', 'oh1665', 'oh1667']
+all_line_products += ['oh1612', 'oh1720', 'oh1665', 'oh1667']
 all_line_products += ['himidres']
 all_line_products += ['hilores']
 all_line_products += ['hi21cm_0p8kms']
