@@ -90,8 +90,8 @@ this_uvh.set_no_cont_products(True)
 
 # Make versions with and without contsub
 
-# for do_contsub in [False, True]:
-for do_contsub in [True]:
+# for do_contsub in [True]:
+for do_contsub in [False, True]:
 
     if not do_contsub:
         contsub_str = "_nocontsub"
