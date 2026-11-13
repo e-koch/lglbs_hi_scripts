@@ -16,7 +16,9 @@ stops without changes if SPWs differ in nchan/width or are offset by >=1 chan) -
 (order 1, first/last 5% of channels per SPW; skipped for `nocontsub`) ->
 `run_test_imaging.py` (natural-weighted single-channel PSF + residual per
 field per VLA config; configs by absolute p95 baseline).
-Job 2: tar, verify, replace tar in project space, remove local MS.
+Job 2: tar, verify, replace tar in project space, remove local MS, then copy the QA products to
+`staged_measurement_sets_summary/<target>/` (`*_products/` minus `test_images/`, plus `stage1_qa_reports/`;
+override the root with `SUMMARY_DIR`).
 
 `summary_amp_weight_vs_uvdist.py` is kept here as a standalone diagnostic.
 Set `STAGED_DIR` to point both jobs at a test copy of the archive.

@@ -11,7 +11,10 @@
 # Job 2 of the final staging pipeline. Run AFTER checking job 1 outputs.
 # For each updated MS in the Job 1 work dir: tar it, verify the tar, replace the
 # tar in the project-space staged_measurement_sets, then remove the local MS.
-# The *_products QA folders are kept unless PURGE=1.
+# Then copy the QA products to $SUMMARY_DIR/<target>/ (default
+# /home/ekoch/projects/rrg-eros-ab/ekoch/VLAXL/staged_measurement_sets_summary): each
+# <target>_*_products dir EXCEPT test_images/, plus stage1_qa_reports/.
+# The work-dir *_products QA folders are kept unless PURGE=1.
 #
 # Submit:  sbatch job2_archive_and_cleanup.sh <target> [workdir]
 #   workdir defaults to the one in scratch/VLAXL_imaging/last_workdir_<target>.txt
@@ -30,6 +33,7 @@ fi
 [ -d "$WORKDIR" ] || { echo "Work dir not found: $WORKDIR"; exit 1; }
 
 STAGED_DIR=${STAGED_DIR:-/home/ekoch/projects/rrg-eros-ab/ekoch/VLAXL/staged_measurement_sets}
+SUMMARY_DIR=${SUMMARY_DIR:-/home/ekoch/projects/rrg-eros-ab/ekoch/VLAXL/staged_measurement_sets_summary}
 PIPE=/home/ekoch/lglbs_hi_scripts/fir_imaging/final_staging_pipeline
 
 module load StdEnv
@@ -65,6 +69,31 @@ done
 
 if [ $FAILED -ne 0 ]; then
     echo "Some MSs failed; work dir NOT cleaned: $WORKDIR"; exit 1
+fi
+
+# Copy the QA products to project space, one directory per target:
+#   $SUMMARY_DIR/<target>/<name>_products/       (everything except test_images/)
+#   $SUMMARY_DIR/<target>/stage1_qa_reports/
+# Done before any purge; set -e aborts here (leaving the work dir intact) if a copy fails.
+DEST=$SUMMARY_DIR/$TARGET
+mkdir -p $DEST
+echo "$(date): copying QA products to $DEST"
+
+PRODS=($WORKDIR/${TARGET}_*_products)
+if [ ${#PRODS[@]} -eq 0 ]; then
+    echo "WARNING: no ${TARGET}_*_products dirs in $WORKDIR"
+fi
+for P in "${PRODS[@]}"; do
+    [ -d "$P" ] || continue
+    rsync -a --exclude='/test_images' $P/ $DEST/$(basename $P)/
+    echo "  copied $(basename $P) (without test_images)"
+done
+
+if [ -d "$WORKDIR/stage1_qa_reports" ]; then
+    rsync -a $WORKDIR/stage1_qa_reports/ $DEST/stage1_qa_reports/
+    echo "  copied stage1_qa_reports"
+else
+    echo "WARNING: no stage1_qa_reports in $WORKDIR (job 1 run with MAKE_SUMMARY=0?)"
 fi
 
 if [ "${PURGE:-0}" = "1" ]; then
