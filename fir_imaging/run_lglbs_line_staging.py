@@ -26,6 +26,10 @@ key_file = "/home/ekoch/lglbs_hi_scripts/lglbs_keys/master_key_fir.txt"
 data_path = "/home/ekoch/scratch/VLAXL_imaging/"
 export_path = "/home/ekoch/projects/rrg-eros-ab/ekoch/VLAXL/staged_measurement_sets/"
 
+# If False, skip staging for any line/contsub combination whose output tar file
+# already exists in export_path. If True, re-stage and replace the existing tar.
+overwrite = False
+
 # Set the logging
 from phangsPipeline import phangsLogger as pl
 # reload(pl)
@@ -100,6 +104,16 @@ for do_contsub in [False, True]:
 
     for this_line in all_line_products:
         print(f"Working on {this_line}")
+
+        # If not overwriting, skip staging when the output tar already exists
+        if not overwrite:
+            tar_names = [f"{export_path}/{this_targ}_{cfg}_{this_line}{contsub_str}.ms.tar"
+                         for cfg in all_configs]
+
+            if all(os.path.exists(name) for name in tar_names):
+                print(f"Found existing {', '.join(tar_names)}. Skipping staging "
+                      f"for {this_line} (overwrite=False).")
+                continue
 
         this_uvh.set_line_products(only=[this_line])
 
