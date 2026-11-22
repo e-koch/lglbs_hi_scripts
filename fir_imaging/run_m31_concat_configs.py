@@ -7,7 +7,9 @@ Now we want to put it back together.
 For each line product, this script:
 1. Copies each per-config tar from staged_measurement_sets to local scratch.
 2. Untars each, removes the local tar.
-3. CASA-concats all 4 configs into a combined A+B+C+D MS.
+3. CASA-concats the configs into a combined MS: A+B+C+D or C+D, chosen with the
+   M31_CONCAT_COMBO env var (ABCD or CD; set by job_submit_m31_concat.sh <combo>).
+   Work happens in M31_CONCAT_LOCAL_DIR (a per-job scratch dir).
 4. Tars the combined MS using the standard naming convention.
 5. Moves the combined tar back to staged_measurement_sets.
 6. Cleans up all local files for that product.
@@ -25,15 +27,27 @@ tb = table()
 freqtol_chanfrac = 0.2  # phangs_imaging_pipeline default
 
 targ = 'm31'
-configs = ['A', 'B', 'C', 'D']
+
+# Which configs to combine, set by job_submit_m31_concat.sh via M31_CONCAT_COMBO.
+# ABCD -> m31_A+B+C+D_<line>.ms ; CD -> m31_C+D_<line>.ms
+combo_options = {'ABCD': ['A', 'B', 'C', 'D'],
+                 'CD': ['C', 'D']}
+combo = os.environ.get('M31_CONCAT_COMBO', 'ABCD').upper().replace('+', '')
+if combo not in combo_options:
+    raise ValueError(f"M31_CONCAT_COMBO={combo!r} not in {list(combo_options)}")
+configs = combo_options[combo]
+combo_label = '+'.join(configs)
+print(f"Combining configs {combo_label}")
+
 all_line_products = ['hilores', 'himidres', 'hi21cm_0p8kms', 'hi21cm',
                      'oh1612', 'oh1720', 'oh1665', 'oh1667']
 
 data_path = "/home/ekoch/scratch/VLAXL_imaging/"
 export_path = "/home/ekoch/projects/rrg-eros-ab/ekoch/VLAXL/staged_measurement_sets/"
-local_dir = '.'
-# local_dir = os.path.join(data_path, "imaging", targ)
-# os.makedirs(local_dir, exist_ok=True)
+# Per-job scratch dir (set by the submit script) so parallel jobs don't collide.
+local_dir = os.environ.get('M31_CONCAT_LOCAL_DIR', '.')
+os.makedirs(local_dir, exist_ok=True)
+print(f"Local working dir: {os.path.abspath(local_dir)}")
 
 for this_line in all_line_products:
     print(f"=== Processing {this_line} ===")
@@ -67,7 +81,7 @@ for this_line in all_line_products:
         per_config_ms.append(os.path.join(local_dir, ms_name))
 
     # Step 3: CASA concat all 4 configs
-    combined_ms_name = f"{targ}_A+B+C+D_{this_line}.ms"
+    combined_ms_name = f"{targ}_{combo_label}_{this_line}.ms"
     combined_ms = os.path.join(local_dir, combined_ms_name)
     print(f"  Concatenating into {combined_ms_name}")
     # Tolerance for merging SPWs: same rule as phangs_imaging_pipeline

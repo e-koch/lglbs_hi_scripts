@@ -40,9 +40,20 @@ then we will setup a manual script to concat them together.
 
 2. Iterate through all configs.
 
-3. Concatenate individual configs together.
+3. Concatenate individual configs together. Submit one job per combination (they can run in parallel):
 
-    TODO: setup script to do this an run a final statwt.
+    ```
+    sbatch ~/lglbs_hi_scripts/fir_imaging/job_submit_m31_concat.sh ABCD
+    sbatch ~/lglbs_hi_scripts/fir_imaging/job_submit_m31_concat.sh CD
+    ```
+
+    - `ABCD` creates `m31_A+B+C+D_<line>.ms.tar`; `CD` creates `m31_C+D_<line>.ms.tar`.
+    - For each line product, the per-config tars are copied from `staged_measurement_sets`, extracted, concatenated, re-tarred, and the combined tar is moved back to `staged_measurement_sets`.
+    - Each job works in its own scratch dir, `scratch/VLAXL_imaging/m31_concat_<combo>_<jobid>`. The MSs are cleaned up by the script, but the dir (with CASA logs) is left behind; remove it by hand when finished.
+    - The combo is passed to `run_m31_concat_configs.py` through the `M31_CONCAT_COMBO` and `M31_CONCAT_LOCAL_DIR` environment variables, set by the submit script.
+    - Uses the same CASA (6.7.6) and startup setup as `final_staging_pipeline/job1_prep_and_test.sh`.
+
+    TODO: run a final statwt.
 
 
 ## Example submission for dwarf target
