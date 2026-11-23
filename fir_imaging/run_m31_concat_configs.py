@@ -10,9 +10,16 @@ For each line product, this script:
 3. CASA-concats the configs into a combined MS: A+B+C+D or C+D, chosen with the
    M31_CONCAT_COMBO env var (ABCD or CD; set by job_submit_m31_concat.sh <combo>).
    Work happens in M31_CONCAT_LOCAL_DIR (a per-job scratch dir).
-4. Tars the combined MS using the standard naming convention.
-5. Moves the combined tar back to staged_measurement_sets.
-6. Cleans up all local files for that product.
+4. Tars the combined MS using the standard naming convention, written directly into
+   staged_measurement_sets (as <name>.tar.tmp, renamed to <name>.tar only when complete, so an
+   interrupted job never leaves a partial tar under the real name; no local copy of the tar).
+5. Cleans up all local files for that product.
+
+Overwrite behaviour (overwrite=True by default; set M31_CONCAT_OVERWRITE=0 to change):
+- overwrite=True : an existing <name>.tar in staged_measurement_sets is removed just before the
+                   new tar is written (after the concat succeeded).
+- overwrite=False: a line whose combined tar already exists is skipped entirely (no copy,
+                   extract or concat).
 '''
 
 import os
@@ -49,8 +56,24 @@ local_dir = os.environ.get('M31_CONCAT_LOCAL_DIR', '.')
 os.makedirs(local_dir, exist_ok=True)
 print(f"Local working dir: {os.path.abspath(local_dir)}")
 
+# Replace an existing combined tar (True) or skip that line (False). Set by the submit command via
+# M31_CONCAT_OVERWRITE (e.g. `M31_CONCAT_OVERWRITE=0 sbatch job_submit_m31_concat.sh CD`).
+overwrite = os.environ.get('M31_CONCAT_OVERWRITE', '1').strip().lower() not in ('0', 'false', 'no', 'n')
+print(f"overwrite={overwrite}")
+
 for this_line in all_line_products:
     print(f"=== Processing {this_line} ===")
+
+    combined_tar_name = f"{targ}_{combo_label}_{this_line}.ms.tar"
+    dest_tar = os.path.join(export_path, combined_tar_name)
+    tmp_tar = dest_tar + ".tmp"
+    if os.path.exists(tmp_tar):
+        # Left behind by an interrupted job; never a complete tar.
+        print(f"  Removing stale partial tar {tmp_tar}")
+        os.remove(tmp_tar)
+    if os.path.exists(dest_tar) and not overwrite:
+        print(f"  {combined_tar_name} already exists and overwrite=False; skipping {this_line}\n")
+        continue
 
     # Steps 1+2: Copy each per-config tar, untar, remove local tar
     per_config_ms = []
@@ -99,19 +122,22 @@ for this_line in all_line_products:
            dirtol='10arcsec',  # tiny fraction of the L-band primary beam
            copypointing=False)
 
-    # Step 4: Tar the combined MS
-    combined_tar_name = combined_ms_name + ".tar"
-    combined_tar = os.path.join(local_dir, combined_tar_name)
-    print(f"  Creating tar {combined_tar_name}")
-    with tarfile.open(combined_tar, "w") as tfile:
-        tfile.add(combined_ms, recursive=True)
+    # Step 4: Tar the combined MS directly into the project space (no local copy of the tar).
+    # Written as <name>.tar.tmp (not matched by the *.ms.tar globs) and renamed once complete.
+    if os.path.exists(dest_tar):   # only reachable with overwrite=True
+        print(f"  Removing existing {combined_tar_name} (overwrite=True)")
+        os.remove(dest_tar)
+    print(f"  Creating tar {dest_tar}")
+    try:
+        with tarfile.open(tmp_tar, "w") as tfile:
+            tfile.add(combined_ms, recursive=True)
+        os.rename(tmp_tar, dest_tar)
+    except BaseException:
+        if os.path.exists(tmp_tar):
+            os.remove(tmp_tar)
+        raise
 
-    # Step 5: Move combined tar to export_path
-    dest_tar = os.path.join(export_path, combined_tar_name)
-    print(f"  Moving tar to {export_path}")
-    shutil.move(combined_tar, dest_tar)
-
-    # Step 6: Clean up all local MS directories for this product
+    # Step 5: Clean up all local MS directories for this product
     print(f"  Cleaning up local files for {this_line}")
     for cfg in configs:
         ms_path = os.path.join(local_dir, f"{targ}_{cfg}_{this_line}.ms")

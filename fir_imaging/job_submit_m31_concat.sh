@@ -14,6 +14,10 @@
 #   sbatch job_submit_m31_concat.sh ABCD    ->  m31_A+B+C+D_<line>.ms.tar
 #   sbatch job_submit_m31_concat.sh CD      ->  m31_C+D_<line>.ms.tar
 #
+# The combined tar is written directly into staged_measurement_sets. By default an existing tar of
+# the same name is replaced; to skip lines whose combined tar already exists instead:
+#   M31_CONCAT_OVERWRITE=0 sbatch job_submit_m31_concat.sh CD
+#
 # Each job runs in its own scratch dir: /home/ekoch/scratch/VLAXL_imaging/m31_concat_<combo>_<jobid>
 
 set -e
