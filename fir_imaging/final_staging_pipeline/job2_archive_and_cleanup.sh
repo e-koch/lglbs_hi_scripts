@@ -91,7 +91,14 @@ done
 
 if [ -d "$WORKDIR/stage1_qa_reports" ]; then
     rsync -a $WORKDIR/stage1_qa_reports/ $DEST/stage1_qa_reports/
-    echo "  copied stage1_qa_reports"
+    # Split job-1 runs (CONFIGS/LINES) all land in this one directory and each has its own
+    # overview.md/csv, so also keep this run's overview under a name unique to the workdir
+    # (overview.md/csv itself ends up holding whichever run was copied last).
+    for ext in md csv; do
+        [ -f $WORKDIR/stage1_qa_reports/overview.$ext ] && \
+            cp $WORKDIR/stage1_qa_reports/overview.$ext $DEST/stage1_qa_reports/overview_$(basename $WORKDIR).$ext
+    done
+    echo "  copied stage1_qa_reports (overview also as overview_$(basename $WORKDIR).md/csv)"
 else
     echo "WARNING: no stage1_qa_reports in $WORKDIR (job 1 run with MAKE_SUMMARY=0?)"
 fi

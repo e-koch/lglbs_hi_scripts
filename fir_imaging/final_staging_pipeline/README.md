@@ -20,6 +20,18 @@ Job 2: tar, verify, replace tar in project space, remove local MS, then copy the
 `staged_measurement_sets_summary/<target>/` (`*_products/` minus `test_images/`, plus `stage1_qa_reports/`;
 override the root with `SUMMARY_DIR`).
 
+Large targets (M31): job 1 runs every `<target>_*.ms.tar` by default. Select a subset with env vars
+(`CONFIGS=C+D`, `LINES=hilores,himidres`, `CONTSUB=yes|no`; `DRY_RUN=1 bash job1_prep_and_test.sh m31`
+lists the selection, sizes and estimated scratch need). Each submission gets its own workdir
+(`<target>_<tag>_<jobid>`) and needs its own job 2, passing the workdir explicitly. All MSs stay in
+the workdir until job 2, so scratch use is ~ the sum of the selected tars plus 1-2x the current MS.
+e.g. `CONFIGS=A+B+C+D LINES=oh1612 sbatch job1_prep_and_test.sh m31`.
+
+Test imaging is sharded over `TEST_SHARDS` (default 8) CASA processes, each with its own working
+dir, CASA cache dir and 1/N of the memory budget: `run_test_imaging.py <ms> <outdir> plan`, then
+`shard I/N` x N in parallel, then `merge N` (no mode = serial, as in `test_imaging_single_ms.sh`).
+Worker logs go to `<name>_products/test_imaging_shard_logs/`.
+
 `summary_amp_weight_vs_uvdist.py` is kept here as a standalone diagnostic.
 Set `STAGED_DIR` to point both jobs at a test copy of the archive.
 
