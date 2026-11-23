@@ -15,7 +15,15 @@ exit 0
 PIPE=~/lglbs_hi_scripts/fir_imaging/final_staging_pipeline
 
 # ---------------------------------------------------------------------------------------------------
-# 0. Check the selection first (login node, no job submitted): tars, sizes, estimated scratch
+# 0a. Make sure the cluster checkout has the NEW scripts (CONFIGS/LINES/DRY_RUN filters). An old copy
+#     silently ignores these variables and runs every m31 tar (73 tars; this happened on 2026-11-22,
+#     job 5319998), and DRY_RUN=1 on an old copy would start real work on the login node.
+# ---------------------------------------------------------------------------------------------------
+cd ~/lglbs_hi_scripts && git checkout main && git pull && git log --oneline -3 && cd -
+grep -c DRY_RUN $PIPE/job1_prep_and_test.sh      # must print a number > 0; 0 means the old script
+
+# ---------------------------------------------------------------------------------------------------
+# 0b. Check the selection first (login node, no job submitted): tars, sizes, estimated scratch
 # ---------------------------------------------------------------------------------------------------
 DRY_RUN=1 CONFIGS=C+D bash $PIPE/job1_prep_and_test.sh m31
 DRY_RUN=1 CONFIGS=A+B+C+D LINES=hilores bash $PIPE/job1_prep_and_test.sh m31
