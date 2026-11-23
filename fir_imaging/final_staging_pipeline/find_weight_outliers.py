@@ -49,6 +49,7 @@ os.makedirs(outdir, exist_ok=True)
 target_chan     = 1      # which channel to sample for weight statistics
 threshold_sigma = 100.0  # flag rows where weight > median + N * scaled-MAD
 hub_threshold   = 0.9    # fraction of scan antennas a hub must have outlier baselines with
+max_print_rows  = 20     # outlier rows listed per block in the log (the full set is still flagged/saved)
 scan_context    = 10     # number of scans either side of an outlier group to plot
 
 vis_base = os.path.join(outdir, os.path.splitext(os.path.basename(vis))[0])
@@ -200,14 +201,18 @@ def _print_block(label, mask, w, scans, ant1, ant2, hub_ants):
         return
     idx = idx[np.argsort(w[idx])[::-1]]
     print()
-    print(f"--- {label} ---")
+    print(f"--- {label}: {len(idx)} rows ---")
     print(f"{'Rank':>4}  {'Weight':>10}  {'Scan':>6}  {'Ant1':>6}  {'Ant2':>6}  {'Baseline':>12}")
     print("-" * 60)
-    for rank, i in enumerate(idx, 1):
+    # Only the top max_print_rows are listed; the rows themselves are still saved and flagged
+    # via the hub-antenna logic.
+    for rank, i in enumerate(idx[:max_print_rows], 1):
         a1 = ant_names[ant1[i]]
         a2 = ant_names[ant2[i]]
         weight_str = '       inf' if np.isinf(w[i]) else f"{w[i]:>10.2f}"
         print(f"{rank:>4}  {weight_str}  {scans[i]:>6}  {a1:>6}  {a2:>6}  {a1}-{a2}")
+    if len(idx) > max_print_rows:
+        print(f"  ... {len(idx) - max_print_rows} more rows not listed (max_print_rows={max_print_rows})")
     bad_scans = np.unique(scans[idx])
     print()
     print("Scans    :", sorted(bad_scans.tolist()))
