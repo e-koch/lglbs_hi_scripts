@@ -19,9 +19,22 @@ reference grid have no valid data in the edge channel, so it is not always flagg
 data). Edge channels flagged in >= edge_flag_frac of the rows are removed with split so
 the staged MS has no dead edge channels.
 
-MSs with a single SPW in use are left unchanged. If the SPWs differ in nchan,
-differ in channel width by >1%, or are offset by >= 1 channel, the script
-stops without changing the MS (these are not the small-offset case).
+MSs with a single SPW in use are left unchanged.
+
+Far-offset, simultaneous SPWs (e.g. M33 OH1665/OH1667 from 17B-162): the line staging
+keeps every SPW that overlaps the requested line window in frequency. In 17B-162 the
+OH1665 and OH1667 SPWs are 2 MHz wide and only ~2 MHz apart, so each line's window also
+catches the neighbouring line's SPW. These extra SPWs are recorded in the *same scans* as
+the reference SPW, are offset by many channels, and carry no data wanted for this line.
+They cannot be merged (combining would merge rows and average different frequency windows),
+so they are dropped with split, keeping only the reference SPW (+ any small-offset SPWs).
+This is only done if every offending SPW is observed in the same observations as the
+reference SPW and >= min_shared_scan_frac of its scans are shared with the reference;
+otherwise the script stops without changing the MS.
+
+If the SPWs differ in nchan, differ in channel width by >1%, or are offset by >= 1
+channel and are NOT simultaneous with the reference SPW, the script stops without
+changing the MS (these are not a case handled here).
 """
 
 import os
@@ -36,6 +49,9 @@ max_width_frac = 0.01   # allowed fractional channel-width difference
 max_shift_chan = 1.0    # allowed offset of channel 0 from reference, in channels
 flag_chunk_rows = 200000  # rows read at a time when counting flags per channel
 edge_flag_frac = 0.9    # an edge channel flagged in >= this fraction of rows is dropped
+min_shared_scan_frac = 0.9  # an offset SPW is "simultaneous" if >= this fraction of its
+                            # (observation, scan) pairs also contain the reference SPW
+scan_chunk_rows = 2000000   # rows read at a time when listing (obs, scan) per SPW
 
 
 def flagged_rows_per_channel(ms):
@@ -62,22 +78,106 @@ def script_args(script_name):
     return sys.argv[idx + 1:]
 
 
+def spws_in_use(ms):
+    """Return ({spw: number of rows}, column names, total rows) for `ms`."""
+    t = table()
+    t.open(ms + "/DATA_DESCRIPTION")
+    dd_spw = t.getcol("SPECTRAL_WINDOW_ID")
+    t.close()
+    t.open(ms)
+    dd_rows = t.getcol("DATA_DESC_ID")
+    cols = t.colnames()
+    nrow = t.nrows()
+    t.close()
+    rows = {}
+    for dd, n in zip(*np.unique(dd_rows, return_counts=True)):
+        s = int(dd_spw[dd])
+        rows[s] = rows.get(s, 0) + int(n)
+    return rows, cols, nrow
+
+
+def not_small_offset(ms, spw_ids, ref):
+    """Return the SPWs in `spw_ids` that are not small-offset copies of `ref`."""
+    md = msmetadata()
+    md.open(ms)
+    nchan_ref = int(md.nchan(ref))
+    freq0_ref = float(md.chanfreqs(ref)[0])
+    width_ref = float(md.chanwidths(ref)[0])
+    bad = []
+    for s in spw_ids:
+        if s == ref:
+            continue
+        nchan = int(md.nchan(s))
+        width = float(md.chanwidths(s)[0])
+        shift = (float(md.chanfreqs(s)[0]) - freq0_ref) / abs(width_ref)
+        print(f"SPW {s} vs ref {ref}: nchan {nchan} vs {nchan_ref}, "
+              f"width {width:.3f} vs {width_ref:.3f} Hz, shift {shift:+.3f} chan")
+        if (nchan != nchan_ref or abs(width / width_ref - 1) > max_width_frac
+                or abs(shift) >= max_shift_chan):
+            bad.append(s)
+    md.close()
+    return bad
+
+
+def scans_per_spw(ms):
+    """Return {spw: set of (observation_id, scan_number)} for the rows of `ms`."""
+    t = table()
+    t.open(ms + "/DATA_DESCRIPTION")
+    dd_spw = t.getcol("SPECTRAL_WINDOW_ID")
+    t.close()
+    t.open(ms)
+    nrow = t.nrows()
+    pairs = {}
+    for start in range(0, nrow, scan_chunk_rows):
+        n = min(scan_chunk_rows, nrow - start)
+        dd = t.getcol("DATA_DESC_ID", startrow=start, nrow=n)
+        obs = t.getcol("OBSERVATION_ID", startrow=start, nrow=n)
+        scan = t.getcol("SCAN_NUMBER", startrow=start, nrow=n)
+        uniq = np.unique(np.stack([dd, obs, scan]), axis=1)
+        for d, o, sc in uniq.T:
+            pairs.setdefault(int(dd_spw[int(d)]), set()).add((int(o), int(sc)))
+    t.close()
+    return pairs
+
+
+def simultaneous_with_ref(spw_scans, s, ref):
+    """True if SPW `s` is only seen in observations that also contain `ref`, and
+    >= min_shared_scan_frac of its (observation, scan) pairs also contain `ref`.
+    Returns (ok, n_scans_of_s, n_shared_scans, observations_of_s_without_ref)."""
+    s_scans = spw_scans[s]
+    shared = s_scans & spw_scans[ref]
+    obs_without_ref = {o for o, _ in s_scans} - {o for o, _ in spw_scans[ref]}
+    frac = len(shared) / max(len(s_scans), 1)
+    return (not obs_without_ref and frac >= min_shared_scan_frac,
+            len(s_scans), len(shared), sorted(obs_without_ref))
+
+
+def drop_spws_keep(ms, keep_spws):
+    """Replace `ms` (in place) by a copy that contains only `keep_spws` (split)."""
+    kept = f"{ms[:-3]}_keepspw_tmp.ms" if ms.endswith(".ms") else ms + "_keepspw_tmp"
+    if os.path.exists(kept):
+        shutil.rmtree(kept)
+    rows_old, cols_old, nrow_all = spws_in_use(ms)
+    nrow_expect = sum(rows_old[s] for s in keep_spws)
+    split(vis=ms, outputvis=kept, spw=",".join(str(s) for s in keep_spws),
+          datacolumn="all", keepflags=True)
+    rows_new, cols_new, nrow_new = spws_in_use(kept)
+    if nrow_new != nrow_expect or len(rows_new) != len(keep_spws):
+        raise RuntimeError(f"SPW selection check failed (rows {nrow_new} vs {nrow_expect}, "
+                           f"SPWs {len(rows_new)} vs {len(keep_spws)}); keeping original")
+    for col in ("DATA", "WEIGHT_SPECTRUM", "CORRECTED_DATA"):
+        if col in cols_old and col not in cols_new:
+            raise RuntimeError(f"Column {col} lost in SPW selection; keeping original")
+    shutil.rmtree(ms)
+    shutil.move(kept, ms)
+    print(f"Dropped {nrow_all - nrow_new} rows ({len(rows_old) - len(rows_new)} SPWs); "
+          f"replaced {ms}")
+
+
 vis = script_args("combine_spws.py")[0].rstrip("/")
 
 # --- SPWs actually used by the data, and the number of rows in each ---
-tbl = table()
-tbl.open(vis + "/DATA_DESCRIPTION")
-dd_spw = tbl.getcol("SPECTRAL_WINDOW_ID")
-tbl.close()
-tbl.open(vis)
-dd_rows = tbl.getcol("DATA_DESC_ID")
-colnames = tbl.colnames()
-nrow_old = tbl.nrows()
-tbl.close()
-rows_per_spw = {}
-for dd, n in zip(*np.unique(dd_rows, return_counts=True)):
-    s = int(dd_spw[dd])
-    rows_per_spw[s] = rows_per_spw.get(s, 0) + int(n)
+rows_per_spw, colnames, nrow_old = spws_in_use(vis)
 spw_ids = sorted(rows_per_spw)
 print(f"SPWs in use (rows): {rows_per_spw}")
 
@@ -87,24 +187,44 @@ if len(spw_ids) < 2:
 
 # --- Check the SPWs really are the small-offset case ---
 ref = max(rows_per_spw, key=rows_per_spw.get)
+bad = not_small_offset(vis, spw_ids, ref)
+
+if bad:
+    # Not small-offset copies. Only OK if they are simultaneous with the reference
+    # (extra windows recorded in the same scans): drop them instead of merging.
+    spw_scans = scans_per_spw(vis)
+    not_sim = []
+    for s in bad:
+        ok, n_s, n_shared, obs_missing = simultaneous_with_ref(spw_scans, s, ref)
+        print(f"SPW {s}: {n_s} (obs, scan) pairs, {n_shared} shared with ref SPW {ref}"
+              + (f"; observations without ref: {obs_missing}" if obs_missing else ""))
+        if not ok:
+            not_sim.append(s)
+    if not_sim:
+        raise RuntimeError(f"SPW(s) {not_sim} are not small-offset copies of SPW {ref} and are "
+                           f"not simultaneous with it; not combining")
+    print(f"Dropping far-offset SPWs {bad} (recorded in the same scans as SPW {ref}); "
+          f"keeping SPWs {[s for s in spw_ids if s not in bad]}")
+    drop_spws_keep(vis, [s for s in spw_ids if s not in bad])
+
+    # Re-read the (renumbered) SPWs in the reduced MS
+    rows_per_spw, colnames, nrow_old = spws_in_use(vis)
+    spw_ids = sorted(rows_per_spw)
+    print(f"SPWs in use after dropping (rows): {rows_per_spw}")
+    if len(spw_ids) < 2:
+        print(f"{vis} has a single SPW in use; nothing to combine")
+        sys.exit(0)
+    ref = max(rows_per_spw, key=rows_per_spw.get)
+    if not_small_offset(vis, spw_ids, ref):
+        raise RuntimeError("Remaining SPWs are still not small-offset copies; not combining")
+
 msmd = msmetadata()
 msmd.open(vis)
 nchan_ref = int(msmd.nchan(ref))
 freqs_ref = np.asarray(msmd.chanfreqs(ref))
 width_ref = float(msmd.chanwidths(ref)[0])
-for s in spw_ids:
-    if s == ref:
-        continue
-    nchan = int(msmd.nchan(s))
-    width = float(msmd.chanwidths(s)[0])
-    shift = (float(msmd.chanfreqs(s)[0]) - freqs_ref[0]) / abs(width_ref)
-    print(f"SPW {s} vs ref {ref}: nchan {nchan} vs {nchan_ref}, "
-          f"width {width:.3f} vs {width_ref:.3f} Hz, shift {shift:+.3f} chan")
-    if (nchan != nchan_ref or abs(width / width_ref - 1) > max_width_frac
-            or abs(shift) >= max_shift_chan):
-        msmd.close()
-        raise RuntimeError(f"SPW {s} is not a small-offset copy of SPW {ref}; not combining")
 msmd.close()
+tbl = table()
 
 # --- Regrid onto the reference grid and merge into one SPW ---
 result = vis[:-3] + "_combspw_tmp.ms" if vis.endswith(".ms") else vis + "_combspw_tmp"

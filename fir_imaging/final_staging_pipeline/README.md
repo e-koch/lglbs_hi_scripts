@@ -10,7 +10,9 @@ outputs can be checked before the archive is overwritten.
 Job 1 runs CASA 6.7.6 (`casa-6.7.6-14-py3.12.el9`). Per staged MS tar: extract to the work dir ->
 `combine_spws.py` (if >1 SPW is in use, e.g. OH lines with a few B0D0 scans ~0.25 chan from the A0C0 SPW,
 or M31 hilores; mstransform regrid onto the busiest SPW's grid with `fftshift` interpolation, in place;
-stops without changes if SPWs differ in nchan/width or are offset by >=1 chan) -> `find_weight_outliers.py`
+far-offset SPWs (>=1 chan, or different nchan/width) that are recorded in the same scans as the busiest SPW
+are dropped with `split` instead of merged, e.g. the neighbouring OH1667 SPW that the OH1665 window picks up in
+M33 17B-162; stops without changes if an offset SPW is not simultaneous with the busiest SPW) -> `find_weight_outliers.py`
 (flag hub antennas, `*_flag_summary.txt` before/after) -> `plot_flag_vs_channel.py`
 (flagged % vs channel number + frequency, PNG/CSV per SPW) -> `run_uvcontsub.py`
 (order 1, first/last 5% of channels per SPW; skipped for `nocontsub`) ->
