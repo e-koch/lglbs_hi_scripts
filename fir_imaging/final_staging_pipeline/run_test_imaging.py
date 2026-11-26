@@ -1,7 +1,7 @@
 """Single-channel natural-weighted test images per field per VLA configuration.
 
 For every field and every VLA configuration present in the MS, run tclean
-(niter=0) on channel 1 of ALL spectral windows in the MS (they are assumed to be the
+(niter=0) on one channel of ALL spectral windows in the MS (they are assumed to be the
 same band on the same channel grid, e.g. the same line observed in different
 correlator setups/epochs; checked below), combined into one output channel,
 selecting only that configuration's observation IDs. Only the PSF and residual
@@ -26,6 +26,11 @@ CASA processes; job1_prep_and_test.sh does this with TEST_SHARDS):
 
 Writes <outdir>/test_<field>_<config>.{psf,residual} and
 <outdir>/test_imaging_summary.txt (same format in every mode).
+
+Channel: the least-flagged channel within the outer 5% at each end of the band (the line-free
+range used by run_uvcontsub.py), read from the <ms>_spw<N>_flag_vs_channel.csv files that
+plot_flag_vs_channel.py wrote to the products dir (the parent of <outdir>, or next to the MS).
+Falls back to channel 1 with a warning if those files are missing.
 """
 
 import json
@@ -44,6 +49,13 @@ def script_args(script_name):
     """Arguments following `script_name` on a `casa -c script args` command line."""
     idx = max(i for i, a in enumerate(sys.argv) if a.endswith(script_name))
     return sys.argv[idx + 1:]
+
+
+# pipeline_common.py lives next to this script (which `casa -c` does not put on sys.path)
+sys.path.insert(0, os.path.dirname(os.path.abspath(
+    next(a for a in reversed(sys.argv) if a.endswith("run_test_imaging.py")))))
+from pipeline_common import (least_flagged_edge_channel, read_flag_vs_channel_csv,  # noqa: E402
+                             EDGE_FRAC)
 
 
 # ---------------------------------------------------------------------------
@@ -134,9 +146,12 @@ cell_oversample = 5.0        # pixels per (lambda / p95 baseline)
 
 # The channel is chosen with tclean's start=<channel>, width=1 (no spw selector): an spw='0:1'
 # selection could give blank PSFs (nothing gridded) for some MSs but not others.
-# Channel 1, not 0: after combine_spws regridding, channel 0 can be (nearly) fully flagged
-# for most fields (OH: ~98% of rows), which gave empty images for every mosaic pointing.
-chan = 1
+# Which channel: the least-flagged one within the outer EDGE_FRAC at each end (the line-free
+# range of run_uvcontsub.py), from the flagged-% CSVs of plot_flag_vs_channel.py. A fixed
+# channel 0 or 1 is not safe: after combine_spws regridding the first channels can be (nearly)
+# fully flagged (OH 1612/1720 in M31 C+D: ~96% at ch0-5, so every C-config image was empty).
+# DEFAULT_CHAN is only the fallback when no flag CSVs are found.
+DEFAULT_CHAN = 1
 
 PLAN_NAME = ".test_imaging_plan.json"
 
@@ -149,7 +164,35 @@ def shard_name(i):
 # Plan / run / summary
 # ---------------------------------------------------------------------------
 
-def build_plan(vis):
+def choose_channel(vis, spws, nchans, outdir):
+    """Least-flagged channel in the outer EDGE_FRAC of the band, from plot_flag_vs_channel CSVs.
+
+    Looks in the products dir (parent of outdir) and next to the MS. With several SPWs (assumed
+    to share a channel grid) the flagged % is averaged over SPWs. Returns (chan, message).
+    """
+    base = os.path.splitext(os.path.basename(vis.rstrip("/")))[0]
+    dirs = [os.path.dirname(os.path.abspath(outdir)), os.path.dirname(os.path.abspath(vis))]
+    per_spw = []
+    for s in spws:
+        pct = None
+        for d in dirs:
+            pct = read_flag_vs_channel_csv(os.path.join(d, f"{base}_spw{s}_flag_vs_channel.csv"),
+                                           nchans[s])
+            if pct is not None:
+                break
+        if pct is None:
+            return DEFAULT_CHAN, (f"WARNING: no usable {base}_spw{s}_flag_vs_channel.csv in {dirs}; "
+                                  f"using fallback channel {DEFAULT_CHAN} (may be heavily flagged)")
+        per_spw.append(pct)
+    if len({len(p) for p in per_spw}) > 1:
+        return DEFAULT_CHAN, f"WARNING: SPWs differ in nchan; using fallback channel {DEFAULT_CHAN}"
+    mean_pct = [sum(col) / len(col) for col in zip(*per_spw)]
+    c, p = least_flagged_edge_channel(mean_pct, EDGE_FRAC)
+    return c, (f"Test channel {c}: least flagged ({p:.3f}%) within the outer "
+               f"{100 * EDGE_FRAC:g}% of the band at each end")
+
+
+def build_plan(vis, outdir):
     """Identify configs, fields, SPWs and the per-(config, field) tclean settings."""
     tbl = table()
     groups, group_p95, p95 = identify_configs(tbl, vis)
@@ -169,6 +212,8 @@ def build_plan(vis):
     fields = list(msmd.fieldnames())
     nchans = {s: int(msmd.nchan(s)) for s in spws}
     nchan = min(nchans.values())
+    chan, chan_msg = choose_channel(vis, spws, nchans, outdir)
+    print(chan_msg)
     chan_freqs = {s: float(msmd.chanfreqs(s)[chan]) for s in spws}
     chan_widths = {s: abs(float(msmd.chanwidths(s)[chan])) for s in spws}
     freq_hz = chan_freqs[spws[0]]
@@ -278,12 +323,12 @@ def main():
     os.makedirs(outdir, exist_ok=True)
 
     if mode is None:                       # original behaviour: everything, serially
-        plan = build_plan(vis)
+        plan = build_plan(vis, outdir)
         rows = [run_job(plan, j, outdir) for j in plan["jobs"]]
         write_summary(plan, rows, outdir)
 
     elif mode == "plan":
-        plan = build_plan(vis)
+        plan = build_plan(vis, outdir)
         with open(os.path.join(outdir, PLAN_NAME), "w") as fh:
             json.dump(plan, fh)
         print(f"Planned {len(plan['jobs'])} tclean jobs: {len(plan['groups'])} configs "

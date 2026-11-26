@@ -29,6 +29,12 @@ lists the selection, sizes and estimated scratch need). Each submission gets its
 the workdir until job 2, so scratch use is ~ the sum of the selected tars plus 1-2x the current MS.
 e.g. `CONFIGS=A+B+C+D LINES=oh1612 sbatch job1_prep_and_test.sh m31`.
 
+Test-imaging channel: `run_test_imaging.py` uses the least-flagged channel within the outer 5% of channels at
+each end of the SPW (the same line-free range `run_uvcontsub.py` fits), not a fixed channel, because band-edge
+channels can be ~all flagged after `combine_spws` (M31 C+D OH1612/OH1720: channel 1 was ~96% flagged, so every
+C-config test image was empty). It reads the `*_flag_vs_channel.csv` that `plot_flag_vs_channel.py` already wrote
+(fallback channel 1, with a warning, if absent).
+
 Test imaging is sharded over `TEST_SHARDS` (default 8) CASA processes, each with its own working
 dir, CASA cache dir and 1/N of the memory budget: `run_test_imaging.py <ms> <outdir> plan`, then
 `shard I/N` x N in parallel, then `merge N` (no mode = serial, as in `test_imaging_single_ms.sh`).

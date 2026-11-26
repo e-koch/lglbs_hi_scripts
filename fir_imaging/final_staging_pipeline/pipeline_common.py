@@ -1,10 +1,49 @@
-"""Tar helpers for the final staging pipeline (standard library only).
+"""Helpers for the final staging pipeline (standard library only).
 
-Used by job1_prep_and_test.sh (extract) and job2_archive_and_cleanup.sh (tar).
+Tar helpers are used by job1_prep_and_test.sh (extract) and job2_archive_and_cleanup.sh (tar).
+The channel-selection helpers are used by run_test_imaging.py and find_weight_outliers.py.
 """
 
+import csv
 import os
 import tarfile
+
+# Fraction of each SPW's channels at each end that is treated as line-free. Same value as
+# edge_frac in run_uvcontsub.py (the uvcontsub fit range).
+EDGE_FRAC = 0.05
+
+
+def edge_channel_count(nchan, frac=EDGE_FRAC):
+    """Number of channels at each end of an SPW (same rounding as run_uvcontsub.py)."""
+    return max(1, int(frac * nchan + 0.5))
+
+
+def read_flag_vs_channel_csv(csv_path, nchan):
+    """Flagged % per channel from a plot_flag_vs_channel.py CSV, or None if missing/unusable."""
+    if not os.path.isfile(csv_path):
+        return None
+    try:
+        with open(csv_path) as fh:
+            pct = [float(row["flagged_pct"]) for row in csv.DictReader(fh)]
+    except (OSError, ValueError, KeyError):
+        return None
+    return pct if len(pct) == nchan else None
+
+
+def least_flagged_edge_channel(pct, frac=EDGE_FRAC, tol=0.01):
+    """Pick the least-flagged channel within the outer `frac` of channels at each end.
+
+    pct: flagged % per channel. Channels within `tol` percentage points of the minimum count as
+    tied; the tie is broken in favour of the channel furthest from the band edge (edge channels
+    are the least reliable after regridding). Returns (channel, flagged_pct).
+    """
+    n = len(pct)
+    k = edge_channel_count(n, frac)
+    cands = list(range(k)) + list(range(n - k, n))
+    best = min(pct[c] for c in cands)
+    near = [c for c in cands if pct[c] <= best + tol]
+    chan = max(near, key=lambda c: (min(c, n - 1 - c), -c))
+    return chan, pct[chan]
 
 
 def extract_ms_tar(tar_path, dest_dir):
