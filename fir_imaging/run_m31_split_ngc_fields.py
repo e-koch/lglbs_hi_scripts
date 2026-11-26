@@ -11,7 +11,7 @@ default D; the concatenated m31_C+D_* / m31_A+B+C+D_* tars never match) this scr
 1. Extracts the MS to local scratch (one tar at a time).
 2. Lists the fields that have data. NGC185/NGC205 absent -> already clean, tar left untouched.
    A field that is neither M31* nor NGC185/NGC205 -> error, tar left untouched.
-3. split()s the M31* fields and each NGC field into their own MS (datacolumn='all',
+3. split()s the M31* fields and each NGC field into their own MS under <local>/split_out/ (datacolumn='all',
    keepflags=True: nothing is dropped, flags are kept exactly).
 4. Checks that the row counts add up to the original and that no MAIN column was lost.
 5. Writes ngc185_<cfg>_<line>[_nocontsub].ms.tar and ngc205_<...>.ms.tar into the staged dir,
@@ -173,11 +173,14 @@ def process_tar(tar_path, cfg):
         tb.close()
 
         # ---- split every group into its own MS: <target>_<cfg>_<line>[_nocontsub].ms
+        # Outputs go in their own subdir: the M31 piece has the same name as the extracted input MS.
+        out_dir = os.path.join(local_dir, 'split_out')
+        if os.path.exists(out_dir):
+            shutil.rmtree(out_dir)
+        os.makedirs(out_dir)
         out = {}
         for tgt, ids in groups.items():
-            out_ms = os.path.join(local_dir, base.replace(f"{targ}_", f"{tgt}_", 1))
-            if os.path.exists(out_ms):
-                shutil.rmtree(out_ms)
+            out_ms = os.path.join(out_dir, base.replace(f"{targ}_", f"{tgt}_", 1))
             print(f"  split -> {os.path.basename(out_ms)} ({len(ids)} fields)")
             split(vis=ms, outputvis=out_ms, field=','.join(str(i) for i in ids),
                   datacolumn='all', keepflags=True)
@@ -206,8 +209,7 @@ def process_tar(tar_path, cfg):
         return 'split'
 
     finally:
-        for path in [ms] + [os.path.join(local_dir, base.replace(f"{targ}_", f"{t}_", 1))
-                            for t in [targ] + ngc_targets]:
+        for path in (ms, os.path.join(local_dir, 'split_out')):
             if os.path.exists(path):
                 shutil.rmtree(path)
 
